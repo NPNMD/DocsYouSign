@@ -29,7 +29,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gold)" }}>
           <span style={{ fontSize: 16 }}>📄</span>
         </div>
-        <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>DocsYouSign</span>
+        <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>SignToSeal</span>
         <span className="text-xs ml-2" style={{ color: "rgba(255,255,255,0.6)" }}>Secure signing portal</span>
       </header>
       <main className="max-w-3xl mx-auto px-6 py-8">{children}</main>

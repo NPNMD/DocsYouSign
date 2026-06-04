@@ -3,8 +3,22 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "DocsYouSign — Personal Document Signing",
-  description: "Sign your personal documents securely and elegantly.",
+  title: "SignToSeal — Sign, Send & Seal Your Documents",
+  description: "Upload PDFs, fill ready-made templates, send documents for signature, and seal every agreement — all in one private, secure place. No subscription required.",
+  keywords: ["e-signature", "document signing", "NDA", "PDF sign", "send for signature", "electronic signature", "free document signing"],
+  openGraph: {
+    title: "SignToSeal — Sign, Send & Seal Your Documents",
+    description: "Upload PDFs, fill ready-made templates, send documents for signature, and seal every agreement.",
+    url: "https://signtoseal.com",
+    siteName: "SignToSeal",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SignToSeal — Sign, Send & Seal Your Documents",
+    description: "Upload PDFs, fill ready-made templates, send documents for signature, and seal every agreement.",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },

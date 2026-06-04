@@ -76,7 +76,7 @@ export default function DashboardPage() {
             <PenIcon />
           </div>
           <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>
-            DocsYouSign
+            SignToSeal
           </span>
         </div>
 

@@ -49,7 +49,7 @@ export default function TemplatesPage() {
             <span style={{ fontSize: 16 }}>📄</span>
           </div>
           <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>
-            DocsYouSign
+            SignToSeal
           </span>
         </button>
         <button onClick={() => router.push("/dashboard")}

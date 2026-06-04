@@ -151,7 +151,7 @@ function FormSignInner() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gold)" }}>
             <span style={{ fontSize: 16 }}>📄</span>
           </div>
-          <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>DocsYouSign</span>
+          <span className="font-display text-lg font-semibold" style={{ color: "var(--gold)" }}>SignToSeal</span>
         </div>
         <button onClick={() => router.push("/dashboard")}
           className="text-sm font-medium px-4 py-2 rounded-lg"
