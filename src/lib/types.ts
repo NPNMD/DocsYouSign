@@ -57,6 +57,9 @@ export interface TemplateFieldDef {
   options?: string[];          // for select
   half?: boolean;              // render two-per-row
   defaultValue?: string;
+  // Only show this field when another field equals a given value
+  // (e.g. a "Specify" text box that appears when a select is "Other").
+  showWhen?: { key: string; value: string };
 }
 
 export interface BaseTemplate {

@@ -72,6 +72,7 @@ function FormSignInner() {
     if (!template) return false;
     const next: Record<string, boolean> = {};
     template.fields.forEach((f) => {
+      if (f.showWhen && values[f.showWhen.key] !== f.showWhen.value) return; // hidden
       if (f.required) {
         const val = (values[f.key] ?? "").trim();
         if (!val) next[f.key] = true;
@@ -187,10 +188,12 @@ function FormSignInner() {
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Fill in the details below. They&apos;ll be embedded into the document.</p>
             <div className="p-5 sm:p-6 rounded-xl" style={{ background: "white", border: "1px solid var(--border)" }}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {template.fields.map((f) => (
-                  <FieldInput key={f.key} f={f} value={values[f.key] ?? ""} error={!!errors[f.key]}
-                    onChange={(val) => setField(f.key, val)} />
-                ))}
+                {template.fields
+                  .filter((f) => !f.showWhen || values[f.showWhen.key] === f.showWhen.value)
+                  .map((f) => (
+                    <FieldInput key={f.key} f={f} value={values[f.key] ?? ""} error={!!errors[f.key]}
+                      onChange={(val) => setField(f.key, val)} />
+                  ))}
               </div>
             </div>
             <button onClick={goReview}

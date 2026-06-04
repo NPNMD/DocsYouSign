@@ -36,6 +36,11 @@ const ndaFields: TemplateFieldDef[] = [
     ],
   },
   {
+    key: "purposeOther", label: "Specify Purpose", input: "text",
+    placeholder: "Describe the purpose of disclosure",
+    showWhen: { key: "purpose", value: "Other" },
+  },
+  {
     key: "entityType", label: "Entity Type", input: "select", half: true,
     defaultValue: "a limited liability company",
     options: [
@@ -76,9 +81,12 @@ function ndaRenderBody(v: Record<string, string>): string {
   const email = (v.email || "").trim();
   const dateStr = today();
 
-  // Purpose: "Other" or blank → a natural generic phrase (no bracket placeholder).
+  // Purpose: use the typed "Specify Purpose" when "Other"; fall back to a
+  // natural generic phrase if nothing usable was provided.
   const purposeRaw = (v.purpose || "").trim();
-  const purposeHtml = purposeRaw && purposeRaw !== "Other" ? fill(purposeRaw) : "business relationship";
+  const purposeOther = (v.purposeOther || "").trim();
+  const effectivePurpose = purposeRaw === "Other" ? purposeOther : purposeRaw;
+  const purposeHtml = effectivePurpose ? fill(effectivePurpose) : "business relationship";
 
   // Recipient detail lines — only include what was provided.
   const recipLines = [esc(entity)];
