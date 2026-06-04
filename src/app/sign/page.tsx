@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -11,11 +11,11 @@ import FieldFillModal from "@/components/FieldFillModal";
 
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
 
-export default function SignPage() {
+function SignPageInner() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const params = useParams();
-  const docId = params.id as string;
+  const searchParams = useSearchParams();
+  const docId = searchParams.get("id");
 
   const [document, setDocument] = useState<Document | null>(null);
   const [docLoading, setDocLoading] = useState(true);
@@ -49,12 +49,14 @@ export default function SignPage() {
         status: data.status ?? "draft",
       } as Document;
       setDocument(d);
-      setFields(d.fields);
       if (d.signerName) setSignerName(d.signerName);
-      if (d.status === "signed") setSaved(true);
-      // Pre-fill date fields with today
-      if (d.status !== "signed") {
-        const today = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date());
+      if (d.status === "signed") {
+        setSaved(true);
+        setFields(d.fields);
+      } else {
+        const today = new Intl.DateTimeFormat("en-US", {
+          month: "long", day: "numeric", year: "numeric",
+        }).format(new Date());
         setFields(d.fields.map(f => f.type === "date" && !f.value ? { ...f, value: today } : f));
       }
       setDocLoading(false);
@@ -62,8 +64,7 @@ export default function SignPage() {
   }, [user, docId, router]);
 
   const handleFieldClick = useCallback((field: DocumentField) => {
-    if (saved) return;
-    if (field.type === "date") return; // auto-filled
+    if (saved || field.type === "date") return;
     setActiveField(field);
   }, [saved]);
 
@@ -72,7 +73,9 @@ export default function SignPage() {
     setActiveField(null);
   }, []);
 
-  const allRequired = fields.length === 0 || fields.every(f => !!f.value);
+  const allFilled = fields.length === 0 || fields.every(f => !!f.value);
+  const unfilledCount = fields.filter(f => !f.value).length;
+  const totalFields = fields.length;
 
   const handleComplete = useCallback(async () => {
     if (!document) return;
@@ -89,9 +92,6 @@ export default function SignPage() {
     }
   }, [document, fields, signerName, router]);
 
-  const unfilledCount = fields.filter(f => !f.value).length;
-  const totalFields = fields.length;
-
   if (loading || !user || docLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--cream)" }}>
@@ -103,7 +103,6 @@ export default function SignPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--cream)" }}>
-      {/* Header */}
       <header className="sticky top-0 z-50 px-6 py-3 flex items-center justify-between"
         style={{ background: "var(--navy)", borderBottom: "1px solid rgba(201,168,76,0.2)" }}>
         <div className="flex items-center gap-3">
@@ -125,17 +124,11 @@ export default function SignPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Progress */}
           {!saved && totalFields > 0 && (
             <div className="hidden sm:flex items-center gap-2">
               <div className="w-32 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${((totalFields - unfilledCount) / totalFields) * 100}%`,
-                    background: "var(--gold)",
-                  }}
-                />
+                <div className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${((totalFields - unfilledCount) / totalFields) * 100}%`, background: "var(--gold)" }} />
               </div>
               <span className="text-xs" style={{ color: "rgba(250,247,240,0.5)" }}>
                 {totalFields - unfilledCount}/{totalFields}
@@ -152,19 +145,16 @@ export default function SignPage() {
               Signed!
             </div>
           ) : (
-            <button
-              onClick={handleComplete}
-              disabled={saving || !allRequired}
+            <button onClick={handleComplete}
+              disabled={saving || !allFilled}
               className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: "var(--gold)", color: "var(--navy)" }}
-            >
+              style={{ background: "var(--gold)", color: "var(--navy)" }}>
               {saving ? "Saving…" : unfilledCount > 0 ? `${unfilledCount} field${unfilledCount !== 1 ? "s" : ""} left` : "✅ Complete Signing"}
             </button>
           )}
         </div>
       </header>
 
-      {/* Instructions banner */}
       {!saved && totalFields > 0 && unfilledCount > 0 && (
         <div className="px-6 py-2.5 text-sm font-medium text-center"
           style={{ background: "rgba(201,168,76,0.12)", color: "var(--navy)", borderBottom: "1px solid rgba(201,168,76,0.2)" }}>
@@ -172,7 +162,6 @@ export default function SignPage() {
         </div>
       )}
 
-      {/* PDF */}
       <main className="flex-1 overflow-y-auto p-4" style={{ background: "#525659" }}>
         <PDFRenderer
           url={document.storageUrl}
@@ -182,7 +171,6 @@ export default function SignPage() {
         />
       </main>
 
-      {/* Field fill modal */}
       {activeField && (
         <FieldFillModal
           field={activeField}
@@ -192,14 +180,11 @@ export default function SignPage() {
         />
       )}
 
-      {/* Name modal */}
       {showNameModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(10,22,40,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-sm p-6 rounded-2xl shadow-2xl" style={{ background: "white" }}>
-            <h3 className="font-display text-lg font-semibold mb-1" style={{ color: "var(--navy)" }}>
-              Your name
-            </h3>
+            <h3 className="font-display text-lg font-semibold mb-1" style={{ color: "var(--navy)" }}>Your name</h3>
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
               Enter your full name for the signing record.
             </p>
@@ -216,21 +201,24 @@ export default function SignPage() {
             <div className="flex gap-2">
               <button onClick={() => setShowNameModal(false)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-                style={{ background: "var(--cream-dark)", color: "var(--text-muted)" }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowNameModal(false); handleComplete(); }}
+                style={{ background: "var(--cream-dark)", color: "var(--text-muted)" }}>Cancel</button>
+              <button onClick={() => { setShowNameModal(false); handleComplete(); }}
                 disabled={!signerName.trim()}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
-                style={{ background: "var(--navy)", color: "var(--gold)" }}>
-                Continue
-              </button>
+                style={{ background: "var(--navy)", color: "var(--gold)" }}>Continue</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function SignPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: "var(--cream)" }}><Spinner /></div>}>
+      <SignPageInner />
+    </Suspense>
   );
 }
 

@@ -33,7 +33,7 @@ export default function DashboardPage() {
     try {
       const newDoc = await uploadDocument(file, user.uid, user.email ?? "");
       // Go straight to prepare to place fields
-      router.push(`/prepare/${newDoc.id}`);
+      router.push(`/prepare?id=${newDoc.id}`);
     } catch (e) {
       console.error("Upload failed:", e);
       setUploading(false);
@@ -46,11 +46,11 @@ export default function DashboardPage() {
   }, []);
 
   const handlePrepare = useCallback((doc: Document) => {
-    router.push(`/prepare/${doc.id}`);
+    router.push(`/prepare?id=${doc.id}`);
   }, [router]);
 
   const handleSign = useCallback((doc: Document) => {
-    router.push(`/sign/${doc.id}`);
+    router.push(`/sign?id=${doc.id}`);
   }, [router]);
 
   if (loading || !user) {
