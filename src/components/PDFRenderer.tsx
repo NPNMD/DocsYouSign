@@ -15,7 +15,7 @@ const FIELD_CONFIG: Record<FieldType, { label: string; icon: string; color: stri
 };
 
 interface Props {
-  url: string;
+  url?: string;
   fields: DocumentField[];
   mode: "prepare" | "sign" | "view";
   onPageCount?: (n: number) => void;
@@ -37,6 +37,10 @@ export default function PDFRenderer({
   onFieldDelete,
   placingType,
 }: Props) {
+  if (!url) {
+    return <div className="flex items-center justify-center h-64 text-white/70">No PDF available for this document.</div>;
+  }
+
   const [numPages, setNumPages] = useState(0);
   const [pageWidth, setPageWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
