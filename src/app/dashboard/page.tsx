@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -30,12 +31,14 @@ export default function DashboardPage() {
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
     setUploading(true);
+    setUploadError(null);
     try {
       const newDoc = await uploadDocument(file, user.uid, user.email ?? "");
-      // Go straight to prepare to place fields
       router.push(`/prepare?id=${newDoc.id}`);
     } catch (e) {
       console.error("Upload failed:", e);
+      const msg = e instanceof Error ? e.message : "Upload failed. Please try again.";
+      setUploadError(msg.includes("storage/") ? "Upload failed — storage error. Please try again." : msg);
       setUploading(false);
     }
   }, [user, router]);
@@ -154,7 +157,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Upload zone */}
-        <UploadZone onUpload={handleUpload} uploading={uploading} />
+        <UploadZone onUpload={handleUpload} uploading={uploading} uploadError={uploadError} />
 
         {/* Documents list */}
         <div className="mt-8">

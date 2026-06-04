@@ -16,147 +16,91 @@ export const LEGAL_DISCLAIMER =
 // NDA — Mutual / one-way confidentiality agreement
 // ════════════════════════════════════════════════════════════════
 const ndaFields: TemplateFieldDef[] = [
-  { key: "fname", label: "First Name", input: "text", required: true, placeholder: "First name", half: true },
-  { key: "lname", label: "Last Name", input: "text", required: true, placeholder: "Last name", half: true },
-  { key: "company", label: "Company / Organization", input: "text", placeholder: "Company name", half: true },
-  { key: "title", label: "Title / Position", input: "text", placeholder: "e.g. CEO, Director", half: true },
-  { key: "email", label: "Email Address", input: "email", placeholder: "you@company.com", half: true },
-  { key: "phone", label: "Phone Number", input: "tel", placeholder: "(555) 000-0000", half: true },
-  { key: "address", label: "Business Address", input: "text", placeholder: "Street, City, State, ZIP" },
-  {
-    key: "purpose", label: "Purpose of Disclosure", input: "select", half: true,
-    options: [
-      "Potential Partnership / Integration",
-      "Technology Licensing Discussion",
-      "Business Development Consultation",
-      "Employment / Contractor Engagement",
-      "Investor / Due Diligence Review",
-      "Vendor / Supplier Evaluation",
-      "Other",
-    ],
-  },
-  {
-    key: "purposeOther", label: "Specify Purpose", input: "text",
-    placeholder: "Describe the purpose of disclosure",
-    showWhen: { key: "purpose", value: "Other" },
-  },
-  {
-    key: "entityType", label: "Entity Type", input: "select", half: true,
-    defaultValue: "a limited liability company",
-    options: [
-      "a limited liability company",
-      "a corporation",
-      "a sole proprietorship",
-      "an individual",
-      "a general partnership",
-      "a limited partnership",
-    ],
-  },
-  {
-    key: "disclosingParty", label: "Disclosing Party (your company)", input: "text", required: true,
-    placeholder: "e.g. Total Relief LLC", defaultValue: "Total Relief LLC",
-  },
-  {
-    key: "governingState", label: "Governing Law (State)", input: "text", half: true,
-    placeholder: "e.g. Texas", defaultValue: "Texas",
-  },
-  {
-    key: "termYears", label: "Term (years)", input: "text", half: true,
-    placeholder: "e.g. 5", defaultValue: "5",
-  },
+  { key: "partyA", label: "Party A — Your Company", input: "text", required: true, half: true, placeholder: "e.g. Total Relief LLC", defaultValue: "Total Relief LLC" },
+  { key: "partyB", label: "Party B — Other Party", input: "text", required: true, half: true, placeholder: "Other company or individual" },
+  { key: "transaction", label: "Purpose of the Transaction", input: "textarea", placeholder: "e.g. evaluating a possible partnership, investment, or service engagement" },
+  { key: "termYears", label: "Term (years)", input: "text", half: true, defaultValue: "3", placeholder: "e.g. 3" },
+  { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas", placeholder: "e.g. Texas" },
+  { key: "partyASigner", label: "Party A — Signatory Name", input: "text", half: true, placeholder: "Who signs for Party A" },
+  { key: "partyATitle", label: "Party A — Signatory Title", input: "text", half: true, placeholder: "e.g. CEO" },
+  { key: "partyBSigner", label: "Party B — Signatory Name", input: "text", half: true, placeholder: "Who signs for Party B" },
+  { key: "partyBTitle", label: "Party B — Signatory Title", input: "text", half: true, placeholder: "e.g. Director" },
 ];
 
 function ndaRenderBody(v: Record<string, string>): string {
-  const fname = (v.fname || "").trim();
-  const lname = (v.lname || "").trim();
-  const fullName = `${fname} ${lname}`.trim();
-  const company = (v.company || "").trim();
-  const recipient = company || fullName || "";
-  const disclosing = v.disclosingParty || "Total Relief LLC";
-  const state = v.governingState || "Texas";
-  const term = v.termYears || "5";
-  const entity = (v.entityType || "a limited liability company").trim();
-  const title = (v.title || "").trim();
-  const addr = (v.address || "").trim();
-  const email = (v.email || "").trim();
+  const a = (v.partyA || "").trim() || "Total Relief LLC";
+  const b = (v.partyB || "").trim();
+  const state = (v.governingState || "Texas").trim();
+  const term = (v.termYears || "3").trim();
+  const txnRaw = (v.transaction || "").trim();
+  const transactionHtml = txnRaw ? fill(txnRaw) : "the consideration of a possible business transaction or consultation";
+  const aSigner = (v.partyASigner || "").trim();
+  const aTitle = (v.partyATitle || "").trim();
+  const bSigner = (v.partyBSigner || "").trim();
+  const bTitle = (v.partyBTitle || "").trim();
   const dateStr = today();
-
-  // Purpose: use the typed "Specify Purpose" when "Other"; fall back to a
-  // natural generic phrase if nothing usable was provided.
-  const purposeRaw = (v.purpose || "").trim();
-  const purposeOther = (v.purposeOther || "").trim();
-  const effectivePurpose = purposeRaw === "Other" ? purposeOther : purposeRaw;
-  const purposeHtml = effectivePurpose ? fill(effectivePurpose) : "business relationship";
-
-  // Recipient detail lines — only include what was provided.
-  const recipLines = [esc(entity)];
-  if (addr) recipLines.push(esc(addr));
-  if (email) recipLines.push(esc(email));
-  const recipSub = recipLines.join("<br>");
-
-  // Signature sub-line: title / company, omitted entirely if both blank.
-  let sigSub = "";
-  if (title && company) sigSub = `${esc(title)} — ${esc(company)}<br>`;
-  else if (title) sigSub = `${esc(title)}<br>`;
-  else if (company) sigSub = `${esc(company)}<br>`;
+  const blank = '<span class="tpl-blank"></span>';
 
   return `
-    <h1>NON-DISCLOSURE AND CONFIDENTIALITY AGREEMENT</h1>
-    <h2>Confidential &amp; Proprietary Information</h2>
+    <h1>NON-DISCLOSURE AGREEMENT</h1>
+    <h2>Mutual Confidentiality Agreement</h2>
     <div class="tpl-divider"></div>
 
-    <div class="tpl-section">PARTIES</div>
-    <p>This Non-Disclosure and Confidentiality Agreement (this <strong>"Agreement"</strong>) is entered into as of ${fill(dateStr)} (the <strong>"Effective Date"</strong>) by and between:</p>
+    <p>WHEREAS, in connection with ${transactionHtml} (the <strong>"Transaction"</strong>) between ${fill(a)} and ${fill(b, "[Party B]")}, the parties may share certain financial and business information, which both consider proprietary and confidential. As a condition to, and in consideration of furnishing each other such information, each party agrees under this Non-Disclosure Agreement (the <strong>"Agreement"</strong>) as follows:</p>
+
+    <div class="tpl-section">1. Confidentiality of Information</div>
+    <p>The parties shall keep confidential and not disclose to any third party "Information," as defined herein, during the term of this Agreement and thereafter. Information shall be used only for the purpose of evaluating the Transaction and for no other purpose. The term <strong>"Information"</strong> shall include all information (regardless of the media or form in which it is presented or contained) provided by any party to any other party in connection with the Transaction and which is designated as confidential and/or reasonably considered by the providing party to be confidential or proprietary, including but not limited to information relating to its business, operations, financial condition, marketing efforts, or its business, financial, operational, or marketing plans. Each party shall limit dissemination of Information only on a "need to know" basis to its selected directors, officers, attorneys, and accountants (its <strong>"Representatives"</strong>), and shall use reasonable efforts to ensure the Information is kept confidential by such Representatives. Any party failing to ensure Information is kept confidential by its Representatives will be liable for the unauthorized disclosure as if such party had disclosed the Information itself.</p>
+
+    <div class="tpl-section">2. Public Statements &amp; Compelled Disclosure</div>
+    <p>The parties shall treat all discussions, term sheets, letters of interest, letters of intent, and pro-formas regarding the Transaction as Information and will not disclose the existence or content of such, whether through a press release or otherwise, except to such party's Representatives or as required by law, and then only after consultation with the other party to the extent legally permissible. If a party or its Representatives become legally compelled (by deposition, interrogatories, request for documents, subpoena, civil investigative demand, or similar process) to disclose any Information, the party upon whom the request is made shall, to the extent legally permissible, provide the other party prompt prior written notice so that party may seek a protective order or other remedy and/or waive compliance. If such protective order or remedy is not obtained, the party upon whom the request is made (i) agrees to furnish only that portion of the Information which it has been advised in writing by its legal counsel is legally required, and to exercise reasonable efforts to obtain assurance that confidential treatment will be accorded such Information, and (ii) shall not be liable for such disclosure unless it was caused by or resulted from such party's previous unauthorized disclosure.</p>
+
+    <div class="tpl-section">3. No Obligation Until Definitive Agreement</div>
+    <p>Unless and until a definitive transaction agreement has been executed and delivered, no contract or agreement providing for a transaction shall be deemed to exist between the parties, and neither party will be under any legal obligation of any kind with respect to the Transaction by virtue of this Agreement or any written or oral expression thereof, except for the matters specifically agreed to herein. For purposes of this Section, a "definitive transaction agreement" does not include an executed letter of intent or any other preliminary written agreement, nor any written or oral acceptance of an offer, bid, proposal, or expression of interest.</p>
+
+    <div class="tpl-section">4. Survival</div>
+    <p>Each party agrees to maintain the confidentiality of the Information regardless of the termination of discussions between the parties with respect to the Transaction.</p>
+
+    <div class="tpl-section">5. Exclusions</div>
+    <p>This Agreement shall not apply to Information which (i) is or becomes generally available to the public without violation of any obligation of confidentiality by either party; (ii) becomes available to a party on a non-confidential basis, provided the source is not known by such party to be bound by a confidentiality agreement concerning the Information; or (iii) has been independently acquired or developed by a party without violating its obligations under this Agreement.</p>
+
+    <div class="tpl-section">6. No Waiver</div>
+    <p>No failure or delay by either party in exercising any right, power, or privilege hereunder shall operate as a waiver thereof, nor shall any single or partial exercise thereof preclude any other or further exercise of any right, power, or privilege.</p>
+
+    <div class="tpl-section">7. Ownership</div>
+    <p>Notwithstanding any disclosures made hereunder or any discussions or communications between the parties, each party shall have and retain sole and exclusive ownership of its Information and other property owned by it at the time of disclosure to the other party.</p>
+
+    <div class="tpl-section">8. Governing Law</div>
+    <p>This Agreement shall be governed by the laws of the State of ${fill(state)}, without regard to its conflicts of laws provisions.</p>
+
+    <div class="tpl-section">9. Binding Effect</div>
+    <p>This Agreement shall be binding upon and shall inure to the benefit of the parties hereto, their Representatives, successors, and assigns.</p>
+
+    <div class="tpl-section">10. Term &amp; Return of Information</div>
+    <p>This Agreement shall remain in effect for ${fill(term)} years. Except as otherwise expressly agreed by the parties in writing, upon termination of this Agreement each party shall (a) immediately cease using the Information of the other party, and (b) promptly return to the other party all Information, including all copies thereof, disclosed hereunder.</p>
+
+    <div class="tpl-section">11. Equitable Relief</div>
+    <p>Each party acknowledges that remedies at law for any breach of this Agreement may be inadequate, since such breach may result in irreparable harm, and therefore, upon any such breach or threat of breach, the disclosing party shall be entitled to seek injunctive relief and any other appropriate equitable relief in addition to whatever remedies it might have at law.</p>
+
+    <div class="tpl-section">12. Counterparts &amp; Electronic Signature</div>
+    <p>This Agreement may be executed in counterparts, which taken together shall constitute one instrument. Delivery of a copy bearing an original signature by facsimile transmission, by electronic mail in portable document format (".pdf"), or by any other electronic means intended to preserve the document's original graphic and pictorial appearance, will have the same effect as physical delivery of the paper document bearing the original signature.</p>
+
+    <div class="tpl-section">13. No Joint Venture</div>
+    <p>This Agreement will not create a joint venture, partnership, or principal-and-agent relationship between the parties. Neither party will have, or represent that it has, the authority to assume or create any obligation, express or implied, on behalf of the other, except as expressly provided in this Agreement.</p>
+
+    <div class="tpl-section">14. Authority</div>
+    <p>Each person signing this Agreement represents and warrants to the other party that such signatory has full power and authority to execute and deliver this Agreement.</p>
+
+    <div class="tpl-section">Agreed To By</div>
     <div class="tpl-parties">
       <div>
-        <div class="tpl-plabel">Disclosing Party</div>
-        <div class="tpl-pval">${fill(disclosing)}</div>
+        <div class="tpl-plabel">Party A</div>
+        <div class="tpl-pval" style="margin-top:6px">${fill(a)}</div>
+        <div class="tpl-psub">By: ${aSigner ? esc(aSigner) : blank}<br>Title: ${aTitle ? esc(aTitle) : blank}<br>Date: ${esc(dateStr)}</div>
       </div>
       <div>
-        <div class="tpl-plabel">Recipient</div>
-        <div class="tpl-pval">${fill(recipient, "[Recipient]")}</div>
-        <div class="tpl-psub">${recipSub}</div>
-      </div>
-    </div>
-
-    <div class="tpl-section">RECITALS</div>
-    <p>WHEREAS, in connection with a <strong>${purposeHtml}</strong>, the Disclosing Party may disclose certain confidential and proprietary information to the Recipient; NOW, THEREFORE, in consideration of the mutual covenants herein, the parties agree as follows:</p>
-
-    <div class="tpl-section">1. DEFINITIONS</div>
-    <p><strong>1.1 "Confidential Information"</strong> means any and all non-public information disclosed by or on behalf of ${fill(disclosing)} to ${fill(recipient, "Recipient")}, including: source code, algorithms, data models and APIs; product roadmaps and unreleased features; business strategies and financial information; trade secrets and intellectual property; and any other information a reasonable person would understand to be confidential.</p>
-    <p><strong>1.2 "Representatives"</strong> means directors, officers, employees, attorneys, accountants, and consultants who need to know for the Purpose and are bound by equal confidentiality obligations.</p>
-    <p><strong>1.3 "Excluded Information"</strong> means information that: (a) was already known to Recipient; (b) becomes publicly available without breach; (c) is received from a non-confidential third party; or (d) was independently developed without reference to Confidential Information.</p>
-
-    <div class="tpl-section">2. CONFIDENTIALITY OBLIGATIONS</div>
-    <p><strong>2.1 Non-Disclosure.</strong> ${fill(recipient, "Recipient")} shall hold all Confidential Information in strict confidence and shall not disclose it to any person without prior written consent of ${fill(disclosing)}. This obligation survives termination of this Agreement.</p>
-    <p><strong>2.2 Limited Use.</strong> Confidential Information shall be used solely in connection with the ${purposeHtml} and for no other purpose, and shall not be used to develop competing products or services.</p>
-    <p><strong>2.3 Standard of Care.</strong> Recipient shall protect Confidential Information using at least the same degree of care as its own most sensitive information, but no less than reasonable care.</p>
-    <p><strong>2.4 Need-to-Know Access.</strong> Disclosure is limited to Representatives with a legitimate need to know. Recipient is liable for any breach by its Representatives.</p>
-    <p><strong>2.5 Breach Notification.</strong> Recipient shall notify ${fill(disclosing)} promptly upon discovering any unauthorized access, use, or disclosure.</p>
-
-    <div class="tpl-section">3. COMPELLED DISCLOSURE</div>
-    <p>If legally compelled to disclose Confidential Information, Recipient shall provide prior written notice where lawful, cooperate in seeking a protective order, and disclose only the minimum required portion.</p>
-
-    <div class="tpl-section">4. ADDITIONAL TERMS</div>
-    <div class="tpl-highlight">
-      <strong>IP Ownership:</strong> ${esc(disclosing)} retains all rights, title, and interest in the Confidential Information. No license is granted.<br><br>
-      <strong>Return / Destruction:</strong> Upon request or termination, Recipient shall return or destroy all Confidential Information and certify completion in writing.<br><br>
-      <strong>Term:</strong> ${esc(term)} years. Trade secret obligations survive for as long as the information remains a trade secret.<br><br>
-      <strong>Remedies:</strong> Breach entitles ${esc(disclosing)} to injunctive relief in addition to all other available remedies.<br><br>
-      <strong>Governing Law:</strong> State of ${esc(state)}; exclusive jurisdiction in the state and federal courts located therein.
-    </div>
-
-    <div class="tpl-section">SIGNATURE</div>
-    <div class="tpl-parties">
-      <div>
-        <div class="tpl-plabel">${esc(disclosing)} (Disclosing Party)</div>
-        <div class="tpl-pval" style="margin-top:6px">${esc(disclosing)}</div>
-        <div class="tpl-psub">Authorized Representative<br>Date: ${esc(dateStr)}</div>
-      </div>
-      <div>
-        <div class="tpl-plabel">Recipient (Signing)</div>
-        <div class="tpl-pval" style="margin-top:6px">${fill(fullName, "[Your Full Name]")}</div>
-        <div class="tpl-psub">${sigSub}Date: ${esc(dateStr)}</div>
+        <div class="tpl-plabel">Party B</div>
+        <div class="tpl-pval" style="margin-top:6px">${fill(b, "[Party B]")}</div>
+        <div class="tpl-psub">By: ${bSigner ? esc(bSigner) : blank}<br>Title: ${bTitle ? esc(bTitle) : blank}<br>Date: ${esc(dateStr)}</div>
       </div>
     </div>
   `;
@@ -200,40 +144,64 @@ const contractorFields: TemplateFieldDef[] = [
 ];
 
 function contractorRenderBody(v: Record<string, string>): string {
-  const client = v.clientName || "[Client]";
-  const contractor = v.contractorName || "[Contractor]";
-  const state = v.governingState || "Texas";
+  const client = (v.clientName || "").trim() || "[Client]";
+  const contractor = (v.contractorName || "").trim() || "[Contractor]";
+  const state = (v.governingState || "Texas").trim();
+  const entity = fill(pick(v, "contractorEntity"), "an individual");
+  const pay = fill(pick(v, "paymentTerms"), "Net 30");
+  const addr = (v.contractorAddress || "").trim();
+  const email = (v.contractorEmail || "").trim();
+  const contractorSub = [addr ? esc(addr) : "", email ? esc(email) : ""].filter(Boolean).join("<br>");
+
   return `
     <h1>INDEPENDENT CONTRACTOR AGREEMENT</h1>
     <h2>Services Engagement</h2>
     <div class="tpl-divider"></div>
-    <p>This Independent Contractor Agreement (this <strong>"Agreement"</strong>) is made as of ${fill(today())} between ${fill(client)} (the <strong>"Client"</strong>) and ${fill(contractor)}, ${fill(pick(v, "contractorEntity"), "an individual")} (the <strong>"Contractor"</strong>).</p>
+    <p>This Independent Contractor Agreement (this <strong>"Agreement"</strong>) is made as of ${fill(today())} (the <strong>"Effective Date"</strong>) by and between ${fill(client)} (the <strong>"Client"</strong>) and ${fill(contractor)}, ${entity} (the <strong>"Contractor"</strong>).</p>
     <div class="tpl-parties">
       <div><div class="tpl-plabel">Client</div><div class="tpl-pval">${fill(client)}</div></div>
       <div><div class="tpl-plabel">Contractor</div><div class="tpl-pval">${fill(contractor)}</div>
-        <div class="tpl-psub">${fill(v.contractorAddress, "[Address]")}${v.contractorEmail ? `<br>${esc(v.contractorEmail)}` : ""}</div></div>
+        <div class="tpl-psub">${contractorSub}</div></div>
     </div>
+
     <div class="tpl-section">1. Services</div>
-    <p>Contractor shall perform the following services (the <strong>"Services"</strong>): ${fill(v.services, "[Description of Services]")}</p>
-    <div class="tpl-section">2. Term</div>
-    <p>This Agreement begins on ${fill(v.startDate, "[Start Date]")} and continues ${v.endDate ? `until ${fill(v.endDate)}` : "until the Services are complete or terminated as provided herein"}. Either party may terminate on ten (10) days' written notice.</p>
-    <div class="tpl-section">3. Compensation</div>
-    <p>Client shall pay Contractor <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${fill(pick(v, "paymentTerms"), "Net 30")}</strong>. Contractor is responsible for all taxes on amounts received.</p>
+    <p>Contractor shall perform the following services (the <strong>"Services"</strong>): ${fill(v.services, "[Description of Services]")}. Contractor shall perform the Services in a professional and workmanlike manner, consistent with generally accepted industry standards, and shall determine the method, details, and means of performing the Services.</p>
+
+    <div class="tpl-section">2. Term &amp; Termination</div>
+    <p>This Agreement begins on ${fill(v.startDate, "[Start Date]")} and continues ${v.endDate ? `until ${fill(v.endDate)}` : "until the Services are complete"}, unless terminated earlier. Either party may terminate this Agreement (a) for convenience on ten (10) days' prior written notice, or (b) immediately for the other party's material breach that remains uncured for five (5) days after notice. Upon termination, Client shall pay for Services properly performed through the termination date.</p>
+
+    <div class="tpl-section">3. Compensation &amp; Expenses</div>
+    <p>Client shall pay Contractor <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${pay}</strong> against Contractor's invoices. Unless otherwise agreed in writing, Contractor is responsible for its own expenses. Contractor is solely responsible for all federal, state, and local taxes on amounts received, including self-employment taxes.</p>
+
     <div class="tpl-section">4. Independent Contractor Status</div>
-    <p>Contractor is an independent contractor, not an employee, partner, or agent of Client. Contractor controls the manner and means of performing the Services and is not entitled to employee benefits. Contractor is responsible for all self-employment and income taxes.</p>
+    <p>Contractor is an independent contractor and not an employee, partner, joint venturer, or agent of Client. Nothing in this Agreement creates an employment relationship. Contractor is not entitled to any employee benefits and has no authority to bind Client or incur obligations on Client's behalf. Client will report payments to Contractor as required (e.g., IRS Form 1099) and will not withhold taxes.</p>
+
     <div class="tpl-section">5. Work Product &amp; Intellectual Property</div>
-    <p>All deliverables, work product, and intellectual property created in connection with the Services shall be the sole property of Client as "work made for hire." Contractor hereby assigns all right, title, and interest in such work product to Client.</p>
+    <p>All deliverables, inventions, designs, code, and other work product created by Contractor in connection with the Services (the <strong>"Work Product"</strong>) are "works made for hire" and the sole and exclusive property of Client. To the extent any Work Product does not qualify as a work made for hire, Contractor hereby irrevocably assigns to Client all right, title, and interest in and to the Work Product, including all intellectual property rights. Contractor shall execute any further documents reasonably necessary to perfect Client's ownership. Contractor retains ownership of any pre-existing materials and grants Client a perpetual, royalty-free license to use them solely as incorporated into the Work Product.</p>
+
     <div class="tpl-section">6. Confidentiality</div>
-    <p>Contractor shall keep confidential all non-public information of Client and shall not use or disclose it except to perform the Services. This obligation survives termination.</p>
-    <div class="tpl-section">7. Indemnification &amp; Governing Law</div>
+    <p>Contractor shall hold in strict confidence all non-public information of Client and shall use it only to perform the Services. Contractor shall not disclose such information to any third party without Client's prior written consent. This obligation survives termination of this Agreement.</p>
+
+    <div class="tpl-section">7. Representations &amp; Warranties</div>
+    <p>Contractor represents and warrants that: (a) it has full authority to enter into this Agreement; (b) the Services and Work Product will be original and will not infringe any third party's intellectual property or other rights; (c) Contractor's performance does not breach any other agreement; and (d) Contractor will comply with all applicable laws in performing the Services.</p>
+
+    <div class="tpl-section">8. Indemnification</div>
+    <p>Contractor shall indemnify, defend, and hold harmless Client from any claims, damages, and reasonable expenses (including attorneys' fees) arising from Contractor's breach of this Agreement, negligence or willful misconduct, or infringement of third-party rights. Each party shall otherwise be responsible for claims arising from its own negligence or breach.</p>
+
+    <div class="tpl-section">9. Limitation of Liability</div>
+    <p>EXCEPT FOR BREACHES OF CONFIDENTIALITY, INDEMNIFICATION OBLIGATIONS, OR INFRINGEMENT, NEITHER PARTY SHALL BE LIABLE FOR INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, AND EACH PARTY'S AGGREGATE LIABILITY SHALL NOT EXCEED THE TOTAL FEES PAID OR PAYABLE UNDER THIS AGREEMENT.</p>
+
+    <div class="tpl-section">10. General</div>
     <div class="tpl-highlight">
-      <strong>Indemnification:</strong> Each party shall indemnify the other against claims arising from its own negligence or breach.<br><br>
-      <strong>Governing Law:</strong> This Agreement is governed by the laws of the State of ${esc(state)}.<br><br>
-      <strong>Entire Agreement:</strong> This is the entire agreement between the parties and supersedes all prior understandings.
+      <strong>Governing Law:</strong> This Agreement is governed by the laws of the State of ${fill(state)}, without regard to conflicts of laws principles.<br><br>
+      <strong>Assignment:</strong> Contractor may not assign this Agreement without Client's prior written consent.<br><br>
+      <strong>Entire Agreement:</strong> This Agreement is the entire agreement between the parties and supersedes all prior understandings; it may be amended only in a writing signed by both parties.<br><br>
+      <strong>Counterparts &amp; Electronic Signature:</strong> This Agreement may be executed in counterparts and by electronic signature, each of which has the same effect as an original.
     </div>
+
     <div class="tpl-section">Signatures</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">Client</div><div class="tpl-pval" style="margin-top:6px">${esc(client)}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Client</div><div class="tpl-pval" style="margin-top:6px">${fill(client)}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
       <div><div class="tpl-plabel">Contractor</div><div class="tpl-pval" style="margin-top:6px">${fill(contractor, "[Contractor]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
     </div>
   `;
