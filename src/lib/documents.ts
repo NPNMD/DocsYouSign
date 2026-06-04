@@ -84,16 +84,23 @@ export async function getDocument(documentId: string): Promise<Document | null> 
 
 export function subscribeToUserDocuments(
   userId: string,
-  callback: (docs: Document[]) => void
+  callback: (docs: Document[]) => void,
+  onError?: (error: Error) => void
 ) {
   const q = query(
     collection(db, "documents"),
     where("ownerId", "==", userId),
     orderBy("createdAt", "desc")
   );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map((d) => docFromSnap({ id: d.id, data: d.data.bind(d) })));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map((d) => docFromSnap({ id: d.id, data: d.data.bind(d) })));
+    },
+    (err) => {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    }
+  );
 }
 
 export async function saveFields(

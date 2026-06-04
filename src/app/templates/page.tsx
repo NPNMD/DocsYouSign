@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { templatesByCategory, LEGAL_DISCLAIMER } from "@/lib/templates";
+import { templatesByCategory, LEGAL_DISCLAIMER, TEMPLATES } from "@/lib/templates";
 import { createDocumentFromTemplate } from "@/lib/documents";
 import type { Template } from "@/lib/types";
 
@@ -63,7 +63,7 @@ export default function TemplatesPage() {
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold" style={{ color: "var(--navy)" }}>Templates</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            Pick a ready-made document, fill it in, and sign — or send it to someone else to sign.
+            {TEMPLATES.length} ready-made documents — fill in, sign, or send to someone else.
           </p>
         </div>
 

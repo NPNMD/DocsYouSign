@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [docsLoading, setDocsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [docsError, setDocsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -21,10 +22,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribeToUserDocuments(user.uid, (docs) => {
-      setDocuments(docs);
-      setDocsLoading(false);
-    });
+    const unsub = subscribeToUserDocuments(
+      user.uid,
+      (docs) => {
+        setDocuments(docs);
+        setDocsLoading(false);
+        setDocsError(null);
+      },
+      (err) => {
+        console.error("Failed to load documents:", err);
+        setDocsLoading(false);
+        setDocsError("Could not load your documents. Try refreshing the page.");
+      }
+    );
     return unsub;
   }, [user]);
 
@@ -83,7 +93,12 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push("/templates")}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+            style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
+            Templates
+          </button>
           <div className="flex items-center gap-2.5">
             {user.photoURL && (
               <img src={user.photoURL} alt="avatar" className="w-8 h-8 rounded-full"
@@ -158,6 +173,12 @@ export default function DashboardPage() {
 
         {/* Upload zone */}
         <UploadZone onUpload={handleUpload} uploading={uploading} uploadError={uploadError} />
+
+        {docsError && (
+          <p className="mt-6 text-sm text-center font-medium" style={{ color: "#dc2626" }}>
+            {docsError}
+          </p>
+        )}
 
         {/* Documents list */}
         <div className="mt-8">
