@@ -2,13 +2,56 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own documents
-    match /documents/{documentId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+
+    function isOwner() {
+      return request.auth != null && request.auth.uid == resource.data.ownerId;
     }
-    
-    // Signature records
+
+    // The signed-in recipient authorized to sign this document.
+    function isPendingSigner() {
+      return request.auth != null
+        && resource.data.pendingSignerEmail != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == resource.data.pendingSignerEmail;
+    }
+
+    match /documents/{documentId} {
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.ownerId;
+
+      // Owner sees their docs; a verified recipient can read the doc sent to them.
+      allow read: if isOwner() || isPendingSigner();
+
+      // Owner can update freely. A recipient may update (to sign) but cannot
+      // change ownership or who the doc was sent to.
+      allow update: if isOwner()
+        || (isPendingSigner()
+            && request.resource.data.ownerId == resource.data.ownerId
+            && request.resource.data.pendingSignerEmail == resource.data.pendingSignerEmail);
+
+      allow delete: if isOwner();
+    }
+
+    // Signing requests — document ID is the secret token.
+    match /signingRequests/{token} {
+      function isSender() {
+        return request.auth != null && request.auth.uid == resource.data.senderId;
+      }
+      function isRecipient() {
+        return request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email.lower() == resource.data.recipientEmail;
+      }
+
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.senderId;
+      allow read: if isSender() || isRecipient();
+      // Recipient may update status/audit when signing; sender may manage too.
+      allow update: if isSender() || isRecipient();
+      allow delete: if isSender();
+    }
+
+    // Legacy signature records
     match /signatures/{signatureId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;

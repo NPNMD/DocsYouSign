@@ -1,16 +1,17 @@
 import {
   collection,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
-  getDocs,
   getDoc,
   query,
   where,
   orderBy,
   Timestamp,
   onSnapshot,
+  arrayUnion,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "./firebase";
@@ -37,6 +38,8 @@ function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Do
     kind: (data.kind as Document["kind"]) ?? "pdf",
     templateId: data.templateId as string | undefined,
     formData: (data.formData as Record<string, string> | undefined) ?? undefined,
+    pendingSignerEmail: data.pendingSignerEmail as string | undefined,
+    signingRequestId: data.signingRequestId as string | undefined,
   };
 }
 
@@ -233,9 +236,19 @@ export async function createSigningRequest(
     createdAt: now,
     sentAt: now,
   };
-  const reqRef = await addDoc(collection(db, "signingRequests"), data);
+  // Token is the document ID so recipients can fetch via a single-doc get()
+  // (security rules can authorize per-document; queries cannot).
+  await setDoc(doc(db, "signingRequests", token), data);
+  // Stamp the document so security rules can authorize the recipient and the
+  // sender's dashboard reflects that it's out for signature.
+  await updateDoc(doc(db, "documents", documentId), {
+    pendingSignerEmail: recipient.email.trim().toLowerCase(),
+    signingRequestId: token,
+    status: "sent",
+    updatedAt: now,
+  });
   return {
-    id: reqRef.id,
+    id: token,
     documentId,
     senderId: sender.id,
     senderEmail: sender.email,
@@ -249,12 +262,38 @@ export async function createSigningRequest(
   };
 }
 
-/** Look up a signing request by its public token (for the /sign/[token] route). */
+/** Record that the recipient opened the document (audit trail). */
+export async function markSigningRequestViewed(requestId: string): Promise<void> {
+  const now = Timestamp.fromDate(new Date());
+  await updateDoc(doc(db, "signingRequests", requestId), {
+    status: "viewed",
+    viewedAt: now,
+    audit: arrayUnion({ event: "viewed", at: new Date().toISOString() }),
+  }).catch(() => {/* non-fatal */});
+}
+
+/** Mark a signing request signed and append the signing audit entry. */
+export async function completeSigningRequest(
+  requestId: string,
+  meta?: { userAgent?: string }
+): Promise<void> {
+  const now = Timestamp.fromDate(new Date());
+  await updateDoc(doc(db, "signingRequests", requestId), {
+    status: "signed",
+    signedAt: now,
+    audit: arrayUnion({
+      event: "signed",
+      at: new Date().toISOString(),
+      userAgent: meta?.userAgent ?? "",
+    }),
+  });
+}
+
+/** Look up a signing request by its public token (token == doc id). */
 export async function getSigningRequestByToken(token: string): Promise<SigningRequest | null> {
-  const q = query(collection(db, "signingRequests"), where("token", "==", token));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
+  const snap = await getDoc(doc(db, "signingRequests", token));
+  if (!snap.exists()) return null;
+  const d = snap;
   const data = d.data();
   return {
     id: d.id,

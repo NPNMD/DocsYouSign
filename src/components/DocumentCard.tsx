@@ -11,6 +11,7 @@ interface Props {
 const STATUS_CONFIG = {
   draft:    { label: "Draft",    color: "var(--text-muted)", bg: "rgba(107,122,150,0.1)" },
   prepared: { label: "Ready to Sign", color: "#b45309", bg: "rgba(180,83,9,0.1)" },
+  sent:     { label: "Out for Signature", color: "#1d4ed8", bg: "rgba(29,78,216,0.1)" },
   signed:   { label: "Signed",   color: "var(--success)", bg: "rgba(26,107,71,0.1)" },
   completed:{ label: "Completed",color: "var(--success)", bg: "rgba(26,107,71,0.1)" },
 };

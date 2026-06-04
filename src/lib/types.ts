@@ -20,7 +20,7 @@ export interface Document {
   // PDF-backed documents have storage; form-template documents do not.
   storageUrl?: string;
   storagePath?: string;
-  status: "draft" | "prepared" | "signed" | "completed";
+  status: "draft" | "prepared" | "sent" | "signed" | "completed";
   fields: DocumentField[];
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +32,9 @@ export interface Document {
   kind?: "pdf" | "form";        // defaults to "pdf" when absent
   templateId?: string;          // set when created from a template
   formData?: Record<string, string>; // answers for form templates
+  // Send-to-sign
+  pendingSignerEmail?: string;  // recipient email (lowercased) authorized to sign
+  signingRequestId?: string;    // active signing request
 }
 
 // ── Template catalog ──────────────────────────────────────────────

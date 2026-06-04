@@ -5,7 +5,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
-import { signFormDocument, saveFormData } from "@/lib/documents";
+import { signFormDocument, saveFormData, createSigningRequest } from "@/lib/documents";
+import { sendSigningInvite } from "@/lib/signing";
 import SignaturePad from "@/components/SignaturePad";
 import type { FormTemplate, TemplateFieldDef } from "@/lib/types";
 
@@ -28,6 +29,14 @@ function FormSignInner() {
   const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [agreementId, setAgreementId] = useState("");
+
+  // Send-to-sign
+  const [showSend, setShowSend] = useState(false);
+  const [recipName, setRecipName] = useState("");
+  const [recipEmail, setRecipEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentLink, setSentLink] = useState("");
+  const [sendError, setSendError] = useState("");
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -99,6 +108,30 @@ function FormSignInner() {
       setSaving(false);
     }
   }, [signature, consent, printName, values, docId]);
+
+  const sendForSignature = useCallback(async () => {
+    if (!user || !docId) return;
+    const email = recipEmail.trim().toLowerCase();
+    if (!recipName.trim()) { setSendError("Enter the recipient's name."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setSendError("Enter a valid recipient email."); return; }
+    setSendError("");
+    setSending(true);
+    try {
+      await saveFormData(docId, values).catch(() => {});
+      const req = await createSigningRequest(
+        docId,
+        { id: user.uid, email: user.email ?? "" },
+        { name: recipName.trim(), email }
+      );
+      const link = await sendSigningInvite(email, req.token);
+      setSentLink(link);
+    } catch (e) {
+      console.error("Send failed:", e);
+      setSendError("Couldn't send. Check the email and try again, or copy the link manually.");
+    } finally {
+      setSending(false);
+    }
+  }, [user, docId, recipName, recipEmail, values]);
 
   if (loading || docLoading || !template) {
     return (
@@ -182,9 +215,14 @@ function FormSignInner() {
               </button>
               <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-xl font-semibold"
                 style={{ background: "var(--navy)", color: "var(--gold)" }}>
-                I&apos;ve Reviewed — Proceed to Sign →
+                Sign It Myself →
               </button>
             </div>
+            <button onClick={() => { setShowSend(true); setSentLink(""); setSendError(""); }}
+              className="w-full mt-3 py-3 rounded-xl font-semibold"
+              style={{ background: "white", color: "var(--navy)", border: "1.5px solid var(--gold)" }}>
+              ✉️ Send to Someone Else to Sign
+            </button>
           </div>
         )}
 
@@ -251,6 +289,70 @@ function FormSignInner() {
           </div>
         )}
       </main>
+
+      {/* Send-for-signature modal */}
+      {showSend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print"
+          style={{ background: "rgba(10,22,40,0.5)" }} onClick={() => !sending && setShowSend(false)}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "white" }} onClick={(e) => e.stopPropagation()}>
+            {sentLink ? (
+              <div>
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">📨</div>
+                  <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>Invitation sent</h2>
+                  <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+                    {recipName} ({recipEmail}) will get a secure link to verify and sign. You can also share the link directly:
+                  </p>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <input readOnly value={sentLink}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ background: "var(--cream)", border: "1px solid var(--border)", color: "var(--navy)" }} />
+                  <button onClick={() => navigator.clipboard?.writeText(sentLink)}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold"
+                    style={{ background: "var(--navy)", color: "var(--gold)" }}>Copy</button>
+                </div>
+                <button onClick={() => { setShowSend(false); router.push("/dashboard"); }}
+                  className="w-full py-3 rounded-xl font-semibold" style={{ background: "var(--navy)", color: "var(--gold)" }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h2 className="font-display text-xl font-bold mb-1" style={{ color: "var(--navy)" }}>Send for signature</h2>
+                <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+                  The recipient verifies their email (no password) and signs the document you filled in.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Recipient name</label>
+                    <input value={recipName} onChange={(e) => setRecipName(e.target.value)} placeholder="Full name"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Recipient email</label>
+                    <input type="email" value={recipEmail} onChange={(e) => setRecipEmail(e.target.value)} placeholder="them@email.com"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
+                  </div>
+                  {sendError && <p className="text-xs" style={{ color: "var(--danger)" }}>{sendError}</p>}
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setShowSend(false)} disabled={sending}
+                    className="px-5 py-3 rounded-xl font-semibold"
+                    style={{ background: "white", color: "var(--navy)", border: "2px solid var(--navy)" }}>Cancel</button>
+                  <button onClick={sendForSignature} disabled={sending}
+                    className="flex-1 py-3 rounded-xl font-semibold disabled:opacity-50"
+                    style={{ background: "var(--gold)", color: "var(--navy)" }}>
+                    {sending ? "Sending…" : "Send invitation →"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
