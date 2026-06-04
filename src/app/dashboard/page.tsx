@@ -46,10 +46,12 @@ export default function DashboardPage() {
   }, []);
 
   const handlePrepare = useCallback((doc: Document) => {
+    if (doc.kind === "form") { router.push(`/form?id=${doc.id}`); return; }
     router.push(`/prepare?id=${doc.id}`);
   }, [router]);
 
   const handleSign = useCallback((doc: Document) => {
+    if (doc.kind === "form") { router.push(`/form?id=${doc.id}`); return; }
     router.push(`/sign?id=${doc.id}`);
   }, [router]);
 
@@ -137,6 +139,19 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+
+        {/* Start from a template */}
+        <button onClick={() => router.push("/templates")}
+          className="w-full mb-4 p-4 rounded-xl flex items-center gap-4 text-left transition-all hover:shadow-md"
+          style={{ background: "white", border: "1px solid var(--gold)" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xl"
+            style={{ background: "rgba(201,168,76,0.15)" }}>📋</div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold" style={{ color: "var(--navy)" }}>Start from a template</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>NDA and more — fill in, sign, or send to someone.</p>
+          </div>
+          <span className="text-sm font-semibold" style={{ color: "var(--gold)" }}>Browse →</span>
+        </button>
 
         {/* Upload zone */}
         <UploadZone onUpload={handleUpload} uploading={uploading} />

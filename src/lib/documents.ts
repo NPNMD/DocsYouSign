@@ -266,7 +266,7 @@ export async function getSigningRequestByToken(token: string): Promise<SigningRe
     token: data.token,
     status: data.status ?? "sent",
     audit: ((data.audit as { event: string; at: string }[]) ?? []).map((e) => ({
-      event: e.event as SigningAuditEvent,
+      event: e.event as "sent" | "viewed" | "verified" | "signed",
       at: new Date(e.at),
     })),
     createdAt: (data.createdAt as Timestamp)?.toDate() ?? new Date(),

@@ -71,18 +71,29 @@ export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* View original */}
-        <a href={doc.storageUrl} target="_blank" rel="noopener noreferrer"
-          className="p-2 rounded-lg transition-all hover:opacity-80"
-          style={{ background: "var(--cream-dark)", color: "var(--navy-mid)" }} title="Open PDF">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15,3 21,3 21,9" /><line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-        </a>
+        {/* View original (PDF documents only) */}
+        {doc.storageUrl && (
+          <a href={doc.storageUrl} target="_blank" rel="noopener noreferrer"
+            className="p-2 rounded-lg transition-all hover:opacity-80"
+            style={{ background: "var(--cream-dark)", color: "var(--navy-mid)" }} title="Open PDF">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <polyline points="15,3 21,3 21,9" /><line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        )}
 
-        {/* Draft → Prepare fields */}
-        {doc.status === "draft" && (
+        {/* Form-template document → single continue/view action */}
+        {doc.kind === "form" && doc.status !== "signed" && doc.status !== "completed" && (
+          <button onClick={() => onSign(doc)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90 hover:scale-105"
+            style={{ background: "var(--navy)", color: "var(--gold)" }}>
+            Continue →
+          </button>
+        )}
+
+        {/* Draft → Prepare fields (PDF documents) */}
+        {doc.kind !== "form" && doc.status === "draft" && (
           <button onClick={() => onPrepare(doc)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90 hover:scale-105"
             style={{ background: "var(--navy)", color: "var(--gold)" }}>
@@ -90,8 +101,8 @@ export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props
           </button>
         )}
 
-        {/* Prepared → Sign */}
-        {doc.status === "prepared" && (
+        {/* Prepared → Sign (PDF documents) */}
+        {doc.kind !== "form" && doc.status === "prepared" && (
           <button onClick={() => onSign(doc)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90 hover:scale-105"
             style={{ background: "var(--gold)", color: "var(--navy)" }}>
@@ -99,8 +110,8 @@ export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props
           </button>
         )}
 
-        {/* Re-prepare or re-sign for non-signed docs without fields */}
-        {doc.status === "draft" && fieldCount === 0 && (
+        {/* Re-prepare or re-sign for non-signed PDF docs without fields */}
+        {doc.kind !== "form" && doc.status === "draft" && fieldCount === 0 && (
           <button onClick={() => onSign(doc)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80"
             style={{ background: "var(--cream-dark)", color: "var(--text-muted)" }}>

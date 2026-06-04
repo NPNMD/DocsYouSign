@@ -79,3 +79,90 @@ body {
 .animate-spin {
   animation: spin 0.8s linear infinite;
 }
+
+/* ── Rendered template document body ─────────────────────────── */
+.tpl-doc-body {
+  padding: 32px 40px;
+  max-height: 540px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.75;
+  color: #2a2a3e;
+}
+.tpl-doc-body h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  text-align: center;
+  color: var(--navy);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.tpl-doc-body h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+.tpl-doc-body p { margin-bottom: 10px; }
+.tpl-divider {
+  height: 2px;
+  background: linear-gradient(90deg, var(--navy), var(--gold), var(--navy));
+  margin: 16px 0 20px;
+  border-radius: 1px;
+}
+.tpl-section {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--gold);
+  padding-left: 10px;
+}
+.tpl-fill {
+  color: var(--navy);
+  font-weight: 600;
+  background: rgba(201,168,76,0.18);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.tpl-parties {
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.tpl-plabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tpl-pval { font-weight: 600; color: var(--navy); font-size: 13px; margin-top: 4px; }
+.tpl-psub { font-size: 11px; color: #666; margin-top: 4px; }
+.tpl-highlight {
+  background: rgba(10,22,40,0.04);
+  border-left: 3px solid var(--navy);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Print ───────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  .tpl-doc-body { max-height: none !important; overflow: visible !important; }
+}
