@@ -36,6 +36,7 @@ function FormSignInner() {
   const [recipEmail, setRecipEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sentLink, setSentLink] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const [sendError, setSendError] = useState("");
 
   useEffect(() => {
@@ -116,6 +117,7 @@ function FormSignInner() {
     if (!recipName.trim()) { setSendError("Enter the recipient's name."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setSendError("Enter a valid recipient email."); return; }
     setSendError("");
+    setEmailSent(false);
     setSending(true);
     try {
       await saveFormData(docId, values).catch(() => {});
@@ -124,11 +126,19 @@ function FormSignInner() {
         { id: user.uid, email: user.email ?? "" },
         { name: recipName.trim(), email }
       );
-      const link = await sendSigningInvite(email, req.token);
+      const link = `${window.location.origin}/sign-request?token=${req.token}&e=${encodeURIComponent(email)}`;
       setSentLink(link);
+      try {
+        await sendSigningInvite(email, req.token);
+        setEmailSent(true);
+      } catch (emailErr) {
+        console.error("Email invite failed:", emailErr);
+        setEmailSent(false);
+      }
     } catch (e) {
       console.error("Send failed:", e);
-      setSendError("Couldn't send. Check the email and try again, or copy the link manually.");
+      setSentLink("");
+      setSendError("Couldn't create the signing request. Please try again.");
     } finally {
       setSending(false);
     }
@@ -221,7 +231,7 @@ function FormSignInner() {
                 Sign It Myself →
               </button>
             </div>
-            <button onClick={() => { setShowSend(true); setSentLink(""); setSendError(""); }}
+            <button onClick={() => { setShowSend(true); setSentLink(""); setEmailSent(false); setSendError(""); }}
               className="w-full mt-3 py-3 rounded-xl font-semibold"
               style={{ background: "white", color: "var(--navy)", border: "1.5px solid var(--gold)" }}>
               ✉️ Send to Someone Else to Sign
@@ -301,10 +311,14 @@ function FormSignInner() {
             {sentLink ? (
               <div>
                 <div className="text-center mb-4">
-                  <div className="text-4xl mb-2">📨</div>
-                  <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>Invitation sent</h2>
+                  <div className="text-4xl mb-2">{emailSent ? "📨" : "🔗"}</div>
+                  <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>
+                    {emailSent ? "Invitation sent" : "Signing link ready"}
+                  </h2>
                   <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-                    {recipName} ({recipEmail}) will get a secure link to verify and sign. You can also share the link directly:
+                    {emailSent
+                      ? `${recipName} (${recipEmail}) will get a secure link to verify and sign. You can also share the link directly:`
+                      : `We couldn't email it automatically yet. Copy and send this link to ${recipEmail} directly:`}
                   </p>
                 </div>
                 <div className="flex gap-2 mb-4">
