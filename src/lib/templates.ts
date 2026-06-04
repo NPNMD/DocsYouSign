@@ -1,5 +1,5 @@
 import type { Template, FormTemplate, TemplateCategory, TemplateFieldDef } from "./types";
-import { esc, fill, today } from "./template-utils";
+import { esc, fill, today, pick } from "./template-utils";
 import { EXTRA_TEMPLATES } from "./templates-extra";
 
 /**
@@ -185,7 +185,8 @@ const contractorFields: TemplateFieldDef[] = [
   { key: "clientName", label: "Client / Company (you)", input: "text", required: true, placeholder: "Your company name", half: true },
   { key: "contractorName", label: "Contractor Full Name", input: "text", required: true, placeholder: "Contractor name", half: true },
   { key: "contractorEntity", label: "Contractor Entity", input: "select", half: true, defaultValue: "an individual",
-    options: ["an individual", "a limited liability company", "a corporation", "a sole proprietorship"] },
+    options: ["an individual", "a limited liability company", "a corporation", "a sole proprietorship", "Other"] },
+  { key: "contractorEntityOther", label: "Specify Entity", input: "text", half: true, placeholder: "Describe the entity type", showWhen: { key: "contractorEntity", value: "Other" } },
   { key: "contractorEmail", label: "Contractor Email", input: "email", placeholder: "contractor@email.com", half: true },
   { key: "contractorAddress", label: "Contractor Address", input: "text", placeholder: "Street, City, State, ZIP" },
   { key: "services", label: "Description of Services", input: "textarea", required: true, placeholder: "Describe the work to be performed…" },
@@ -193,7 +194,8 @@ const contractorFields: TemplateFieldDef[] = [
   { key: "endDate", label: "End Date (or leave blank for ongoing)", input: "date", half: true },
   { key: "compensation", label: "Compensation", input: "text", required: true, placeholder: "e.g. $5,000 flat / $100 per hour", half: true },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Net 30",
-    options: ["Upon completion", "Net 15", "Net 30", "Monthly", "Per milestone"] },
+    options: ["Upon completion", "Net 15", "Net 30", "Monthly", "Per milestone", "Other"] },
+  { key: "paymentTermsOther", label: "Specify Payment Terms", input: "text", half: true, placeholder: "e.g. 50% upfront, 50% on delivery", showWhen: { key: "paymentTerms", value: "Other" } },
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, placeholder: "e.g. Texas", defaultValue: "Texas" },
 ];
 
@@ -205,7 +207,7 @@ function contractorRenderBody(v: Record<string, string>): string {
     <h1>INDEPENDENT CONTRACTOR AGREEMENT</h1>
     <h2>Services Engagement</h2>
     <div class="tpl-divider"></div>
-    <p>This Independent Contractor Agreement (this <strong>"Agreement"</strong>) is made as of ${fill(today())} between ${fill(client)} (the <strong>"Client"</strong>) and ${fill(contractor)}, ${fill(v.contractorEntity, "an individual")} (the <strong>"Contractor"</strong>).</p>
+    <p>This Independent Contractor Agreement (this <strong>"Agreement"</strong>) is made as of ${fill(today())} between ${fill(client)} (the <strong>"Client"</strong>) and ${fill(contractor)}, ${fill(pick(v, "contractorEntity"), "an individual")} (the <strong>"Contractor"</strong>).</p>
     <div class="tpl-parties">
       <div><div class="tpl-plabel">Client</div><div class="tpl-pval">${fill(client)}</div></div>
       <div><div class="tpl-plabel">Contractor</div><div class="tpl-pval">${fill(contractor)}</div>
@@ -216,7 +218,7 @@ function contractorRenderBody(v: Record<string, string>): string {
     <div class="tpl-section">2. Term</div>
     <p>This Agreement begins on ${fill(v.startDate, "[Start Date]")} and continues ${v.endDate ? `until ${fill(v.endDate)}` : "until the Services are complete or terminated as provided herein"}. Either party may terminate on ten (10) days' written notice.</p>
     <div class="tpl-section">3. Compensation</div>
-    <p>Client shall pay Contractor <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${fill(v.paymentTerms, "Net 30")}</strong>. Contractor is responsible for all taxes on amounts received.</p>
+    <p>Client shall pay Contractor <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${fill(pick(v, "paymentTerms"), "Net 30")}</strong>. Contractor is responsible for all taxes on amounts received.</p>
     <div class="tpl-section">4. Independent Contractor Status</div>
     <p>Contractor is an independent contractor, not an employee, partner, or agent of Client. Contractor controls the manner and means of performing the Services and is not entitled to employee benefits. Contractor is responsible for all self-employment and income taxes.</p>
     <div class="tpl-section">5. Work Product &amp; Intellectual Property</div>
@@ -313,7 +315,8 @@ const offerFields: TemplateFieldDef[] = [
   { key: "candidateName", label: "Candidate Full Name", input: "text", required: true, placeholder: "Candidate name", half: true },
   { key: "jobTitle", label: "Job Title", input: "text", required: true, placeholder: "e.g. Software Engineer", half: true },
   { key: "employmentType", label: "Employment Type", input: "select", half: true, defaultValue: "Full-time",
-    options: ["Full-time", "Part-time", "Contract", "Temporary"] },
+    options: ["Full-time", "Part-time", "Contract", "Temporary", "Other"] },
+  { key: "employmentTypeOther", label: "Specify Employment Type", input: "text", half: true, placeholder: "Describe the employment type", showWhen: { key: "employmentType", value: "Other" } },
   { key: "salary", label: "Compensation Amount", input: "text", required: true, placeholder: "e.g. $120,000", half: true },
   { key: "payPeriod", label: "Pay Period", input: "select", half: true, defaultValue: "per year",
     options: ["per year", "per hour", "per month"] },
@@ -333,7 +336,7 @@ function offerRenderBody(v: Record<string, string>): string {
     <div class="tpl-divider"></div>
     <p>${esc(today())}</p>
     <p>Dear ${fill(candidate)},</p>
-    <p>${esc(company)} is pleased to offer you the position of <strong>${fill(v.jobTitle, "[Job Title]")}</strong> (${fill(v.employmentType, "Full-time")}). We are excited about the contributions you will make to our team.</p>
+    <p>${esc(company)} is pleased to offer you the position of <strong>${fill(v.jobTitle, "[Job Title]")}</strong> (${fill(pick(v, "employmentType"), "Full-time")}). We are excited about the contributions you will make to our team.</p>
     <div class="tpl-section">Position &amp; Start Date</div>
     <p>Your start date will be ${fill(v.startDate, "[Start Date]")}${v.manager ? `, reporting to ${esc(v.manager)}` : ""}.</p>
     <div class="tpl-section">Compensation</div>

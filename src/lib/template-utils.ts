@@ -25,3 +25,13 @@ export function fill(val: string | undefined, placeholder = "[———]"): stri
 export function today(): string {
   return new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
+
+/**
+ * Resolve a select that may be set to "Other": returns the typed companion
+ * value (stored under `${key}Other`) when the select is "Other", otherwise the
+ * select value itself.
+ */
+export function pick(v: Record<string, string>, key: string): string {
+  const raw = (v[key] ?? "").trim();
+  return raw === "Other" ? (v[`${key}Other`] ?? "").trim() : raw;
+}

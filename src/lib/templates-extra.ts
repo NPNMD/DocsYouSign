@@ -1,5 +1,5 @@
 import type { FormTemplate, TemplateFieldDef } from "./types";
-import { esc, fill, today } from "./template-utils";
+import { esc, fill, today, pick } from "./template-utils";
 
 /**
  * Additional stock business agreements (form templates).
@@ -29,7 +29,15 @@ function S(title: string): string {
   return `<div class="tpl-section">${esc(title)}</div>`;
 }
 
-const PAYMENT_TERMS = ["Upon receipt", "Net 15", "Net 30", "Net 45", "Monthly", "Per milestone"];
+const PAYMENT_TERMS = ["Upon receipt", "Net 15", "Net 30", "Net 45", "Monthly", "Per milestone", "Other"];
+
+/** Companion "Specify…" text field for a payment-terms select set to "Other". */
+function paymentOther(key: string): TemplateFieldDef {
+  return {
+    key: `${key}Other`, label: "Specify Payment Terms", input: "text", half: true,
+    placeholder: "e.g. 50% upfront, 50% on delivery", showWhen: { key, value: "Other" },
+  };
+}
 
 // ════════════════════════════════════════════════════════════════
 // 1. MASTER SERVICE AGREEMENT
@@ -41,6 +49,7 @@ const msaFields: TemplateFieldDef[] = [
   { key: "effectiveDate", label: "Effective Date", input: "date", half: true },
   { key: "term", label: "Term", input: "text", half: true, defaultValue: "One (1) year, auto-renewing", placeholder: "e.g. 1 year, auto-renewing" },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Net 30", options: PAYMENT_TERMS },
+  paymentOther("paymentTerms"),
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
 ];
 function msaBody(v: Record<string, string>): string {
@@ -50,7 +59,7 @@ function msaBody(v: Record<string, string>): string {
     <p>This Master Service Agreement (this <strong>"Agreement"</strong>) is entered into as of ${fill(v.effectiveDate, today())} between ${fill(p)} (<strong>"Provider"</strong>) and ${fill(c)} (<strong>"Client"</strong>).</p>
     ${S("1. Services")}<p>Provider will perform services described in one or more Statements of Work (each, an <strong>"SOW"</strong>) executed under this Agreement. Each SOW is governed by these terms. General scope: ${fill(v.services, "[Overview of Services]")}.</p>
     ${S("2. Term")}<p>This Agreement begins on the Effective Date and continues for ${fill(v.term, "one (1) year")}, unless terminated earlier. Either party may terminate for material breach on 30 days' written notice if uncured.</p>
-    ${S("3. Fees & Payment")}<p>Client shall pay the fees stated in each SOW, due <strong>${fill(v.paymentTerms, "Net 30")}</strong>. Late amounts accrue interest at the lesser of 1.5%/month or the maximum lawful rate.</p>
+    ${S("3. Fees & Payment")}<p>Client shall pay the fees stated in each SOW, due <strong>${fill(pick(v, "paymentTerms"), "Net 30")}</strong>. Late amounts accrue interest at the lesser of 1.5%/month or the maximum lawful rate.</p>
     ${S("4. Confidentiality & IP")}<div class="tpl-highlight"><strong>Confidentiality:</strong> Each party protects the other's non-public information and uses it only to perform under this Agreement.<br><br><strong>Work Product:</strong> Unless an SOW states otherwise, deliverables are owned by Client upon full payment; Provider retains its pre-existing and general tools/know-how.</div>
     ${S("5. Warranty & Liability")}<p>Provider will perform in a professional, workmanlike manner. EXCEPT FOR CONFIDENTIALITY AND INDEMNITY OBLIGATIONS, NEITHER PARTY IS LIABLE FOR INDIRECT OR CONSEQUENTIAL DAMAGES, AND EACH PARTY'S TOTAL LIABILITY IS LIMITED TO THE FEES PAID UNDER THE APPLICABLE SOW.</p>
     ${S("6. Governing Law")}<p>This Agreement is governed by the laws of the State of ${esc(st)}.</p>
@@ -76,6 +85,7 @@ const sowFields: TemplateFieldDef[] = [
   { key: "endDate", label: "Target Completion", input: "date", half: true },
   { key: "fee", label: "Fees", input: "text", required: true, half: true, placeholder: "e.g. $20,000 fixed" },
   { key: "paymentSchedule", label: "Payment Schedule", input: "select", half: true, defaultValue: "Per milestone", options: PAYMENT_TERMS },
+  paymentOther("paymentSchedule"),
 ];
 function sowBody(v: Record<string, string>): string {
   const p = v.provider || "[Provider]", c = v.client || "[Client]";
@@ -85,7 +95,7 @@ function sowBody(v: Record<string, string>): string {
     ${S("1. Scope of Work")}<p>${fill(v.scope, "[Scope of Work]")}</p>
     ${S("2. Deliverables")}<p>${fill(v.deliverables, "As described in the scope above.")}</p>
     ${S("3. Timeline")}<p>Work begins ${fill(v.startDate, "[Start]")} with target completion ${fill(v.endDate, "[Completion]")}.</p>
-    ${S("4. Fees")}<p>Fees: <strong>${fill(v.fee, "[Fees]")}</strong>, invoiced <strong>${fill(v.paymentSchedule, "per milestone")}</strong>, subject to the payment terms of the MSA.</p>
+    ${S("4. Fees")}<p>Fees: <strong>${fill(v.fee, "[Fees]")}</strong>, invoiced <strong>${fill(pick(v, "paymentSchedule"), "per milestone")}</strong>, subject to the payment terms of the MSA.</p>
     ${S("5. Acceptance")}<div class="tpl-highlight">Deliverables are deemed accepted if Client does not provide written notice of material non-conformance within ten (10) business days of delivery.</div>
     ${sig("Provider", fill(p), "Client", fill(c))}`;
 }
@@ -105,6 +115,7 @@ const serviceFields: TemplateFieldDef[] = [
   { key: "startDate", label: "Start Date", input: "date", half: true },
   { key: "fee", label: "Fee", input: "text", required: true, half: true, placeholder: "e.g. $2,500" },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Net 15", options: PAYMENT_TERMS },
+  paymentOther("paymentTerms"),
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
 ];
 function serviceBody(v: Record<string, string>): string {
@@ -113,7 +124,7 @@ function serviceBody(v: Record<string, string>): string {
     <h1>SERVICE AGREEMENT</h1><div class="tpl-divider"></div>
     <p>This Service Agreement is made as of ${fill(today())} between ${fill(p)} (<strong>"Provider"</strong>) and ${fill(c)} (<strong>"Client"</strong>).</p>
     ${S("1. Services")}<p>Provider agrees to perform the following services: ${fill(v.services, "[Services]")}, beginning ${fill(v.startDate, "[Start Date]")}.</p>
-    ${S("2. Fees")}<p>Client shall pay <strong>${fill(v.fee, "[Fee]")}</strong>, due <strong>${fill(v.paymentTerms, "Net 15")}</strong>.</p>
+    ${S("2. Fees")}<p>Client shall pay <strong>${fill(v.fee, "[Fee]")}</strong>, due <strong>${fill(pick(v, "paymentTerms"), "Net 15")}</strong>.</p>
     ${S("3. Independent Contractor")}<p>Provider is an independent contractor and not an employee or agent of Client.</p>
     ${S("4. Ownership & Warranty")}<div class="tpl-highlight">Deliverables become Client's property upon full payment. Provider warrants the services will be performed in a professional manner. Provider's total liability shall not exceed the fees paid.</div>
     ${S("5. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
@@ -135,6 +146,7 @@ const consultingFields: TemplateFieldDef[] = [
   { key: "startDate", label: "Start Date", input: "date", half: true },
   { key: "compensation", label: "Compensation", input: "text", required: true, half: true, placeholder: "e.g. $200/hour" },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Net 30", options: PAYMENT_TERMS },
+  paymentOther("paymentTerms"),
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
 ];
 function consultingBody(v: Record<string, string>): string {
@@ -143,7 +155,7 @@ function consultingBody(v: Record<string, string>): string {
     <h1>CONSULTING AGREEMENT</h1><div class="tpl-divider"></div>
     <p>This Consulting Agreement is made as of ${fill(today())} between ${fill(co)} (<strong>"Company"</strong>) and ${fill(cn)} (<strong>"Consultant"</strong>).</p>
     ${S("1. Engagement")}<p>Company engages Consultant to provide: ${fill(v.services, "[Consulting Services]")}, commencing ${fill(v.startDate, "[Start Date]")}.</p>
-    ${S("2. Compensation")}<p>Company shall pay <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${fill(v.paymentTerms, "Net 30")}</strong>. Consultant is responsible for all taxes.</p>
+    ${S("2. Compensation")}<p>Company shall pay <strong>${fill(v.compensation, "[Compensation]")}</strong>, payable <strong>${fill(pick(v, "paymentTerms"), "Net 30")}</strong>. Consultant is responsible for all taxes.</p>
     ${S("3. Independent Contractor")}<p>Consultant is an independent contractor. Nothing herein creates an employment, partnership, or agency relationship.</p>
     ${S("4. Confidentiality & IP")}<div class="tpl-highlight">Consultant shall keep Company's confidential information in strict confidence. All work product created for Company is assigned to Company upon payment.</div>
     ${S("5. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
@@ -164,6 +176,7 @@ const salesFields: TemplateFieldDef[] = [
   { key: "goods", label: "Goods / Assets", input: "textarea", required: true, placeholder: "Describe what is being sold…" },
   { key: "price", label: "Purchase Price", input: "text", required: true, half: true, placeholder: "e.g. $10,000" },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Upon receipt", options: PAYMENT_TERMS },
+  paymentOther("paymentTerms"),
   { key: "deliveryDate", label: "Delivery Date", input: "date", half: true },
   { key: "deliveryTerms", label: "Delivery Terms", input: "text", half: true, placeholder: "e.g. FOB Seller's location" },
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
@@ -174,7 +187,7 @@ function salesBody(v: Record<string, string>): string {
     <h1>SALES / PURCHASE AGREEMENT</h1><div class="tpl-divider"></div>
     <p>This Agreement is made as of ${fill(today())} between ${fill(s)} (<strong>"Seller"</strong>) and ${fill(b)} (<strong>"Buyer"</strong>).</p>
     ${S("1. Sale of Goods")}<p>Seller agrees to sell and Buyer agrees to purchase: ${fill(v.goods, "[Goods / Assets]")}.</p>
-    ${S("2. Price & Payment")}<p>Purchase price: <strong>${fill(v.price, "[Price]")}</strong>, payable <strong>${fill(v.paymentTerms, "upon receipt")}</strong>.</p>
+    ${S("2. Price & Payment")}<p>Purchase price: <strong>${fill(v.price, "[Price]")}</strong>, payable <strong>${fill(pick(v, "paymentTerms"), "upon receipt")}</strong>.</p>
     ${S("3. Delivery")}<p>Delivery on or about ${fill(v.deliveryDate, "[Delivery Date]")}${v.deliveryTerms ? `, ${esc(v.deliveryTerms)}` : ""}. Title and risk of loss pass to Buyer upon delivery.</p>
     ${S("4. Warranties")}<div class="tpl-highlight">Seller warrants good title and the right to sell. EXCEPT AS STATED, THE GOODS ARE SOLD "AS IS" WITHOUT OTHER WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</div>
     ${S("5. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
@@ -283,6 +296,7 @@ const commissionFields: TemplateFieldDef[] = [
   { key: "products", label: "Products / Services", input: "textarea", placeholder: "What the rep will sell…" },
   { key: "rate", label: "Commission Rate", input: "text", required: true, half: true, placeholder: "e.g. 8% of net sales" },
   { key: "schedule", label: "Payment Schedule", input: "select", half: true, defaultValue: "Monthly", options: PAYMENT_TERMS },
+  paymentOther("schedule"),
   { key: "termMonths", label: "Term (months)", input: "text", half: true, placeholder: "e.g. 12" },
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
 ];
@@ -292,7 +306,7 @@ function commissionBody(v: Record<string, string>): string {
     <h1>SALES COMMISSION AGREEMENT</h1><div class="tpl-divider"></div>
     <p>This Agreement is made as of ${fill(today())} between ${fill(co)} (<strong>"Company"</strong>) and ${fill(r)} (<strong>"Representative"</strong>).</p>
     ${S("1. Appointment")}<p>Company appoints Representative to solicit sales of ${fill(v.products, "Company's products and services")}${v.territory ? ` in ${esc(v.territory)}` : ""} on a non-exclusive basis.</p>
-    ${S("2. Commission")}<p>Representative earns <strong>${fill(v.rate, "[Commission Rate]")}</strong> on collected sales, paid <strong>${fill(v.schedule, "monthly")}</strong>. Commissions are earned when Company receives payment from the customer.</p>
+    ${S("2. Commission")}<p>Representative earns <strong>${fill(v.rate, "[Commission Rate]")}</strong> on collected sales, paid <strong>${fill(pick(v, "schedule"), "monthly")}</strong>. Commissions are earned when Company receives payment from the customer.</p>
     ${S("3. Duties")}<div class="tpl-highlight">Representative is an independent contractor, bears its own expenses, and has no authority to bind Company. Company sets all prices and may accept or reject any order.</div>
     ${S("4. Term")}<p>This Agreement continues for ${fill(v.termMonths, "twelve (12)")} months and may be terminated on 30 days' notice. Commissions on sales closed before termination remain payable.</p>
     ${S("5. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
@@ -314,6 +328,7 @@ const subFields: TemplateFieldDef[] = [
   { key: "compensation", label: "Compensation", input: "text", required: true, half: true, placeholder: "e.g. $15,000" },
   { key: "startDate", label: "Start Date", input: "date", half: true },
   { key: "paymentTerms", label: "Payment Terms", input: "select", half: true, defaultValue: "Net 30", options: PAYMENT_TERMS },
+  paymentOther("paymentTerms"),
   { key: "governingState", label: "Governing Law (State)", input: "text", half: true, defaultValue: "Texas" },
 ];
 function subBody(v: Record<string, string>): string {
@@ -322,7 +337,7 @@ function subBody(v: Record<string, string>): string {
     <h1>SUBCONTRACTOR AGREEMENT</h1><div class="tpl-divider"></div>
     <p>This Agreement is made as of ${fill(today())} between ${fill(pr)} (<strong>"Contractor"</strong>) and ${fill(su)} (<strong>"Subcontractor"</strong>).</p>
     ${S("1. Scope")}<p>Subcontractor shall perform: ${fill(v.scope, "[Scope]")}, beginning ${fill(v.startDate, "[Start Date]")}.</p>
-    ${S("2. Compensation")}<p>Contractor shall pay <strong>${fill(v.compensation, "[Compensation]")}</strong>, due <strong>${fill(v.paymentTerms, "Net 30")}</strong> after acceptance of the work.</p>
+    ${S("2. Compensation")}<p>Contractor shall pay <strong>${fill(v.compensation, "[Compensation]")}</strong>, due <strong>${fill(pick(v, "paymentTerms"), "Net 30")}</strong> after acceptance of the work.</p>
     ${S("3. Independent Contractor & Indemnity")}<div class="tpl-highlight">Subcontractor is an independent contractor, responsible for its own taxes, tools, and insurance, and shall indemnify Contractor against claims arising from Subcontractor's work or negligence.</div>
     ${S("4. Confidentiality")}<p>Subcontractor shall keep confidential all non-public information of Contractor and its clients.</p>
     ${S("5. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
