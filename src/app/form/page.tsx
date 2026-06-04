@@ -185,8 +185,8 @@ function FormSignInner() {
           <div>
             <h1 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--navy)" }}>{template.name}</h1>
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Fill in the details below. They&apos;ll be embedded into the document.</p>
-            <div className="p-6 rounded-xl" style={{ background: "white", border: "1px solid var(--border)" }}>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-5 sm:p-6 rounded-xl" style={{ background: "white", border: "1px solid var(--border)" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {template.fields.map((f) => (
                   <FieldInput key={f.key} f={f} value={values[f.key] ?? ""} error={!!errors[f.key]}
                     onChange={(val) => setField(f.key, val)} />
@@ -360,7 +360,7 @@ function FormSignInner() {
 function FieldInput({ f, value, error, onChange }: {
   f: TemplateFieldDef; value: string; error: boolean; onChange: (v: string) => void;
 }) {
-  const span = f.half ? "" : "col-span-2";
+  const span = f.half ? "" : "sm:col-span-2";
   const borderColor = error ? "var(--danger)" : "var(--border)";
   const baseStyle = { background: "white", border: `1.5px solid ${borderColor}`, color: "var(--navy)" } as const;
   return (

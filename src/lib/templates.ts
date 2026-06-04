@@ -1,4 +1,6 @@
 import type { Template, FormTemplate, TemplateCategory, TemplateFieldDef } from "./types";
+import { esc, fill, today } from "./template-utils";
+import { EXTRA_TEMPLATES } from "./templates-extra";
 
 /**
  * Stock template catalog (static / code-defined for v1).
@@ -9,25 +11,6 @@ export const LEGAL_DISCLAIMER =
   "This is a stock template provided for convenience and general informational " +
   "purposes only. It is not legal advice and may not fit your situation or " +
   "jurisdiction. Have it reviewed by a licensed attorney before use.";
-
-// ── helpers ───────────────────────────────────────────────────────
-function esc(s: string): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Render a value or a highlighted placeholder when empty. */
-function fill(val: string | undefined, placeholder = "[———]"): string {
-  const v = (val ?? "").trim();
-  return `<span class="tpl-fill">${v ? esc(v) : placeholder}</span>`;
-}
-
-function today(): string {
-  return new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
 
 // ════════════════════════════════════════════════════════════════
 // NDA — Mutual / one-way confidentiality agreement
@@ -495,6 +478,7 @@ export const TEMPLATES: Template[] = [
   w9,
   waiver,
   lease,
+  ...EXTRA_TEMPLATES,
 ];
 
 export const CATEGORY_ORDER: TemplateCategory[] = [
