@@ -8,10 +8,18 @@ export function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Render a value, or a highlighted placeholder when empty. */
+/**
+ * Render a filled value (highlighted), or graceful fallback when empty:
+ *  - a bracketed placeholder like "[Address]" → a clean blank underline
+ *  - a natural-language fallback like "Net 30" → rendered as plain text
+ * This keeps signed documents free of "[Bracket]" artifacts when optional
+ * fields are left blank.
+ */
 export function fill(val: string | undefined, placeholder = "[———]"): string {
   const v = (val ?? "").trim();
-  return `<span class="tpl-fill">${v ? esc(v) : placeholder}</span>`;
+  if (v) return `<span class="tpl-fill">${esc(v)}</span>`;
+  if (placeholder.startsWith("[")) return `<span class="tpl-blank"></span>`;
+  return esc(placeholder);
 }
 
 export function today(): string {

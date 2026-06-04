@@ -65,11 +65,32 @@ function ndaRenderBody(v: Record<string, string>): string {
   const fname = (v.fname || "").trim();
   const lname = (v.lname || "").trim();
   const fullName = `${fname} ${lname}`.trim();
-  const recipient = v.company || fullName || "";
+  const company = (v.company || "").trim();
+  const recipient = company || fullName || "";
   const disclosing = v.disclosingParty || "Total Relief LLC";
   const state = v.governingState || "Texas";
   const term = v.termYears || "5";
+  const entity = (v.entityType || "a limited liability company").trim();
+  const title = (v.title || "").trim();
+  const addr = (v.address || "").trim();
+  const email = (v.email || "").trim();
   const dateStr = today();
+
+  // Purpose: "Other" or blank → a natural generic phrase (no bracket placeholder).
+  const purposeRaw = (v.purpose || "").trim();
+  const purposeHtml = purposeRaw && purposeRaw !== "Other" ? fill(purposeRaw) : "business relationship";
+
+  // Recipient detail lines — only include what was provided.
+  const recipLines = [esc(entity)];
+  if (addr) recipLines.push(esc(addr));
+  if (email) recipLines.push(esc(email));
+  const recipSub = recipLines.join("<br>");
+
+  // Signature sub-line: title / company, omitted entirely if both blank.
+  let sigSub = "";
+  if (title && company) sigSub = `${esc(title)} — ${esc(company)}<br>`;
+  else if (title) sigSub = `${esc(title)}<br>`;
+  else if (company) sigSub = `${esc(company)}<br>`;
 
   return `
     <h1>NON-DISCLOSURE AND CONFIDENTIALITY AGREEMENT</h1>
@@ -86,12 +107,12 @@ function ndaRenderBody(v: Record<string, string>): string {
       <div>
         <div class="tpl-plabel">Recipient</div>
         <div class="tpl-pval">${fill(recipient, "[Recipient]")}</div>
-        <div class="tpl-psub">${fill(v.entityType, "[Entity Type]")}<br>${fill(v.address, "[Address]")}${v.email ? `<br>${esc(v.email)}` : ""}</div>
+        <div class="tpl-psub">${recipSub}</div>
       </div>
     </div>
 
     <div class="tpl-section">RECITALS</div>
-    <p>WHEREAS, in connection with a <strong>${fill(v.purpose, "[Purpose of Disclosure]")}</strong>, the Disclosing Party may disclose certain confidential and proprietary information to the Recipient; NOW, THEREFORE, in consideration of the mutual covenants herein, the parties agree as follows:</p>
+    <p>WHEREAS, in connection with a <strong>${purposeHtml}</strong>, the Disclosing Party may disclose certain confidential and proprietary information to the Recipient; NOW, THEREFORE, in consideration of the mutual covenants herein, the parties agree as follows:</p>
 
     <div class="tpl-section">1. DEFINITIONS</div>
     <p><strong>1.1 "Confidential Information"</strong> means any and all non-public information disclosed by or on behalf of ${fill(disclosing)} to ${fill(recipient, "Recipient")}, including: source code, algorithms, data models and APIs; product roadmaps and unreleased features; business strategies and financial information; trade secrets and intellectual property; and any other information a reasonable person would understand to be confidential.</p>
@@ -100,7 +121,7 @@ function ndaRenderBody(v: Record<string, string>): string {
 
     <div class="tpl-section">2. CONFIDENTIALITY OBLIGATIONS</div>
     <p><strong>2.1 Non-Disclosure.</strong> ${fill(recipient, "Recipient")} shall hold all Confidential Information in strict confidence and shall not disclose it to any person without prior written consent of ${fill(disclosing)}. This obligation survives termination of this Agreement.</p>
-    <p><strong>2.2 Limited Use.</strong> Confidential Information shall be used solely for the <strong>${fill(v.purpose, "stated Purpose")}</strong> and for no other purpose, and shall not be used to develop competing products or services.</p>
+    <p><strong>2.2 Limited Use.</strong> Confidential Information shall be used solely in connection with the ${purposeHtml} and for no other purpose, and shall not be used to develop competing products or services.</p>
     <p><strong>2.3 Standard of Care.</strong> Recipient shall protect Confidential Information using at least the same degree of care as its own most sensitive information, but no less than reasonable care.</p>
     <p><strong>2.4 Need-to-Know Access.</strong> Disclosure is limited to Representatives with a legitimate need to know. Recipient is liable for any breach by its Representatives.</p>
     <p><strong>2.5 Breach Notification.</strong> Recipient shall notify ${fill(disclosing)} promptly upon discovering any unauthorized access, use, or disclosure.</p>
@@ -127,7 +148,7 @@ function ndaRenderBody(v: Record<string, string>): string {
       <div>
         <div class="tpl-plabel">Recipient (Signing)</div>
         <div class="tpl-pval" style="margin-top:6px">${fill(fullName, "[Your Full Name]")}</div>
-        <div class="tpl-psub">${fill(v.title, "[Title]")} — ${fill(v.company, "[Company]")}<br>Date: ${esc(dateStr)}</div>
+        <div class="tpl-psub">${sigSub}Date: ${esc(dateStr)}</div>
       </div>
     </div>
   `;

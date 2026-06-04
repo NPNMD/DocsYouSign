@@ -6,6 +6,12 @@ interface Props {
   onSave: (dataUrl: string | null) => void;
 }
 
+const CURSIVE_FONTS = [
+  "'Dancing Script', cursive",
+  "'Pacifico', cursive",
+  "'Great Vibes', cursive",
+];
+
 export default function SignaturePadComponent({ onSave }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePadLib | null>(null);
@@ -13,12 +19,6 @@ export default function SignaturePadComponent({ onSave }: Props) {
   const [mode, setMode] = useState<"draw" | "type">("draw");
   const [typedName, setTypedName] = useState("");
   const [selectedFont, setSelectedFont] = useState(0);
-
-  const CURSIVE_FONTS = [
-    "'Dancing Script', cursive",
-    "'Pacifico', cursive",
-    "'Great Vibes', cursive",
-  ];
 
   // Init pad
   useEffect(() => {

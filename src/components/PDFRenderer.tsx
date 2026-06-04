@@ -37,10 +37,6 @@ export default function PDFRenderer({
   onFieldDelete,
   placingType,
 }: Props) {
-  if (!url) {
-    return <div className="flex items-center justify-center h-64 text-white/70">No PDF available for this document.</div>;
-  }
-
   const [numPages, setNumPages] = useState(0);
   const [pageWidth, setPageWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +110,10 @@ export default function PDFRenderer({
     },
     [mode, onFieldMove]
   );
+
+  if (!url) {
+    return <div className="flex items-center justify-center h-64 text-white/70">No PDF available for this document.</div>;
+  }
 
   return (
     <div ref={containerRef} className="w-full" style={{ cursor: mode === "prepare" && placingType ? "crosshair" : "default" }}>
