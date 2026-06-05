@@ -4,23 +4,35 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { templatesByCategory, LEGAL_DISCLAIMER, TEMPLATES } from "@/lib/templates";
 import { createDocumentFromTemplate } from "@/lib/documents";
-import type { Template } from "@/lib/types";
+import { riskTone, templateWarnings } from "@/lib/template-utils";
+import type { Template, TemplateRiskLevel } from "@/lib/types";
 
 export default function TemplatesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [creatingId, setCreatingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Template | null>(null);
+  const [ackGeneral, setAckGeneral] = useState(false);
+  const [ackRisk, setAckRisk] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [user, loading, router]);
+
+  const openUse = useCallback((template: Template) => {
+    setSelected(template);
+    setAckGeneral(false);
+    setAckRisk(false);
+  }, []);
 
   const handleUse = useCallback(async (template: Template) => {
     if (!user) return;
     if (template.kind !== "form") return; // PDF templates land in a later phase
     setCreatingId(template.id);
     try {
-      const newDoc = await createDocumentFromTemplate(template, user.uid, user.email ?? "");
+      const newDoc = await createDocumentFromTemplate(template, user.uid, user.email ?? "", {
+        acknowledgedAt: new Date(),
+      });
       router.push(`/form?id=${newDoc.id}`);
     } catch (e) {
       console.error("Failed to create from template:", e);
@@ -38,6 +50,9 @@ export default function TemplatesPage() {
   }
 
   const groups = templatesByCategory();
+  const selectedRisk = selected?.riskLevel ?? "medium";
+  const selectedNeedsExtra = selectedRisk === "high" || selectedRisk === "restricted";
+  const canCreate = !!selected && ackGeneral && (!selectedNeedsExtra || ackRisk);
 
   return (
     <div className="min-h-screen" style={{ background: "var(--cream)" }}>
@@ -92,8 +107,13 @@ export default function TemplatesPage() {
                   <p className="text-xs leading-relaxed flex-1" style={{ color: "var(--text-muted)" }}>
                     {t.description}
                   </p>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <RiskBadge risk={t.riskLevel} />
+                    {t.jurisdictionSensitive && <MiniBadge label="State-sensitive" />}
+                    {t.attorneyReviewRecommended && <MiniBadge label="Review advised" />}
+                  </div>
                   <button
-                    onClick={() => handleUse(t)}
+                    onClick={() => openUse(t)}
                     disabled={creatingId === t.id}
                     className="mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
                     style={{ background: "var(--navy)", color: "var(--gold)" }}>
@@ -109,6 +129,105 @@ export default function TemplatesPage() {
           Need something else? Healthcare templates (HIPAA Authorization, BAA, Telehealth Consent) are next.
         </p>
       </main>
+
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(10,22,40,0.5)" }} onClick={() => creatingId ? undefined : setSelected(null)}>
+          <div className="w-full max-w-lg rounded-xl p-6" style={{ background: "white" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="text-3xl flex-shrink-0">{selected.icon}</div>
+              <div className="min-w-0">
+                <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>{selected.name}</h2>
+                <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{selected.description}</p>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  <RiskBadge risk={selected.riskLevel} />
+                  <MiniBadge label={`v${selected.version ?? "1.0.0"}`} />
+                  {selected.jurisdictionSensitive && <MiniBadge label="Jurisdiction-sensitive" />}
+                  {selected.attorneyReviewRecommended && <MiniBadge label="Attorney review recommended" />}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 p-4 rounded-lg" style={{ background: "rgba(201,168,76,0.10)", border: "1px solid rgba(201,168,76,0.45)" }}>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-primary)" }}>
+                <strong>Stock template only.</strong> {LEGAL_DISCLAIMER}
+              </p>
+              {selected.sourceUrl && (
+                <a href={selected.sourceUrl} target="_blank" rel="noreferrer"
+                  className="text-xs font-semibold inline-block mt-2"
+                  style={{ color: "var(--navy)" }}>
+                  Official/reference source →
+                </a>
+              )}
+            </div>
+
+            {templateWarnings(selected).length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>Before you use it</h3>
+                <ul className="space-y-2">
+                  {templateWarnings(selected).map((warning) => (
+                    <li key={warning} className="text-xs leading-relaxed flex gap-2" style={{ color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--danger)" }}>•</span>
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-5 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={ackGeneral} onChange={(e) => setAckGeneral(e.target.checked)}
+                  className="mt-1 w-4 h-4 flex-shrink-0" style={{ accentColor: "var(--navy)" }} />
+                <span className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  I understand this is a stock template, not legal advice, and I am responsible for confirming it fits my situation.
+                </span>
+              </label>
+              {selectedNeedsExtra && (
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={ackRisk} onChange={(e) => setAckRisk(e.target.checked)}
+                    className="mt-1 w-4 h-4 flex-shrink-0" style={{ accentColor: "var(--danger)" }} />
+                  <span className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                    I understand this is a {selectedRisk} template and should be reviewed by a qualified professional before use.
+                  </span>
+                </label>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setSelected(null)} disabled={!!creatingId}
+                className="px-5 py-3 rounded-lg font-semibold"
+                style={{ background: "white", color: "var(--navy)", border: "2px solid var(--navy)" }}>
+                Cancel
+              </button>
+              <button onClick={() => selected && handleUse(selected)} disabled={!canCreate || creatingId === selected.id}
+                className="flex-1 py-3 rounded-lg font-semibold disabled:opacity-50"
+                style={{ background: "var(--gold)", color: "var(--navy)" }}>
+                {creatingId === selected.id ? "Creating…" : "Acknowledge & create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function RiskBadge({ risk }: { risk?: TemplateRiskLevel }) {
+  const tone = riskTone(risk);
+  return (
+    <span className="text-[10px] font-semibold px-2 py-1 rounded-full"
+      style={{ background: tone.background, color: tone.color, border: `1px solid ${tone.border}` }}>
+      {tone.label} risk
+    </span>
+  );
+}
+
+function MiniBadge({ label }: { label: string }) {
+  return (
+    <span className="text-[10px] font-semibold px-2 py-1 rounded-full"
+      style={{ background: "rgba(10,22,40,0.04)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+      {label}
+    </span>
   );
 }

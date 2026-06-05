@@ -1,6 +1,7 @@
 import type { Template, FormTemplate, TemplateCategory, TemplateFieldDef } from "./types";
-import { esc, fill, today, pick } from "./template-utils";
+import { esc, fill, today, pick, DEFAULT_TEMPLATE_VERSION, TEMPLATE_LAST_REVIEWED, templateFooter } from "./template-utils";
 import { EXTRA_TEMPLATES } from "./templates-extra";
+import { MORE_TEMPLATES } from "./templates-more";
 
 /**
  * Stock template catalog (static / code-defined for v1).
@@ -11,6 +12,173 @@ export const LEGAL_DISCLAIMER =
   "This is a stock template provided for convenience and general informational " +
   "purposes only. It is not legal advice and may not fit your situation or " +
   "jurisdiction. Have it reviewed by a licensed attorney before use.";
+
+const COMMON_SIGN_CONSENT =
+  "I have read this document, I agree to be legally bound by its terms, I confirm I am authorized to sign, and I intend my electronic signature to have the same legal effect as a handwritten signature under the E-SIGN Act and applicable state UETA.";
+
+const TEMPLATE_META: Record<string, Partial<Template>> = {
+  nda: {
+    version: "1.1.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Confirm whether you need mutual or one-way confidentiality before sending."],
+    tags: ["confidentiality", "business"],
+  },
+  contractor: {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Worker classification, IP ownership, tax, and benefits rules can vary by jurisdiction."],
+    tags: ["contractor", "ip", "services"],
+  },
+  "offer-letter": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Employment terms, background checks, pay disclosures, and at-will language can vary by state."],
+    tags: ["hr", "employment"],
+  },
+  w9: {
+    version: "1.1.0", riskLevel: "high", officialFormSensitive: true, attorneyReviewRecommended: true,
+    sourceUrl: "https://www.irs.gov/forms-pubs/about-form-w-9",
+    warnings: ["Use the current official IRS Form W-9 for tax records when required."],
+    tags: ["tax", "irs", "finance"],
+  },
+  "liability-waiver": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Waiver enforceability, minor releases, gross negligence, and activity-specific rules vary by jurisdiction."],
+    tags: ["waiver", "release"],
+  },
+  "residential-lease": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Lease disclosures, deposits, fees, eviction rights, and local housing rules vary heavily."],
+    tags: ["real-estate", "lease"],
+  },
+  "non-compete": {
+    version: "1.1.0", riskLevel: "restricted", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    sourceUrl: "https://www.ftc.gov/nonmerger/noncompete",
+    warnings: [
+      "Non-competes are heavily restricted or prohibited in many jurisdictions.",
+      "Consider safer alternatives first: NDA, invention assignment, non-solicitation, or customer confidentiality terms.",
+    ],
+    tags: ["restricted", "employment", "competition"],
+  },
+  "non-solicitation": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Non-solicit enforceability varies and may be treated like a non-compete in some jurisdictions."],
+    tags: ["restricted-covenant"],
+  },
+  "promissory-note": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Interest, usury, default, and collection rules vary by jurisdiction."],
+    tags: ["finance", "loan"],
+  },
+  "operating-agreement": {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Entity governance, tax, transfer, deadlock, and fiduciary duties should be tailored to the company."],
+    tags: ["llc", "governance"],
+  },
+  partnership: {
+    version: "1.1.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["General partnerships can create personal liability. Consider entity and tax review."],
+    tags: ["partnership", "governance"],
+  },
+  "one-way-nda": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Use when only one party discloses confidential information."],
+    tags: ["confidentiality"],
+  },
+  "invention-assignment": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Employee invention assignment laws vary, and some states protect inventions developed outside company work."],
+    tags: ["ip", "work-product"],
+  },
+  "proprietary-information-inventions": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Employee/contractor IP and confidentiality terms should match local employment law."],
+    tags: ["hr", "ip", "confidentiality"],
+  },
+  "data-processing-agreement": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Privacy obligations depend on the data, locations, roles, and applicable laws such as GDPR, CCPA/CPRA, and sector rules."],
+    tags: ["privacy", "vendor"],
+  },
+  "saas-order-form": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Pair with full SaaS terms, acceptable use terms, privacy terms, and a DPA when personal data is processed."],
+    tags: ["saas", "subscription"],
+  },
+  "media-release": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Extra care is required for minors, paid endorsements, healthcare contexts, and sensitive uses."],
+    tags: ["media", "release"],
+  },
+  "model-release": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Commercial likeness rights, minors, and sensitive uses can require tailored language."],
+    tags: ["media", "likeness"],
+  },
+  "employee-handbook-acknowledgment": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Handbook acknowledgments should not accidentally create an employment contract."],
+    tags: ["hr", "policy"],
+  },
+  "equipment-loan": { version: "1.0.0", riskLevel: "low", tags: ["equipment", "property"] },
+  "company-property-return": { version: "1.0.0", riskLevel: "low", tags: ["hr", "offboarding"] },
+  "bill-of-sale": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true,
+    warnings: ["Vehicles, regulated goods, liens, and titled assets may require official forms or notarization."],
+    tags: ["sale", "property"],
+  },
+  "lease-addendum": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Lease changes may require notices, disclosures, or local addenda."],
+    tags: ["real-estate", "lease"],
+  },
+  "move-in-move-out-checklist": {
+    version: "1.0.0", riskLevel: "medium", jurisdictionSensitive: true,
+    warnings: ["Security deposit and inspection rules vary by jurisdiction."],
+    tags: ["real-estate", "condition"],
+  },
+  "board-written-consent": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Confirm corporate law, bylaws, quorum, voting, and whether unanimous consent is required."],
+    tags: ["corporate", "governance"],
+  },
+  "llc-member-written-consent": {
+    version: "1.0.0", riskLevel: "high", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    warnings: ["Confirm the operating agreement, required approval thresholds, and state LLC law."],
+    tags: ["llc", "governance"],
+  },
+  "hipaa-business-associate-agreement": {
+    version: "1.0.0", riskLevel: "restricted", jurisdictionSensitive: true, attorneyReviewRecommended: true,
+    sourceUrl: "https://www.hhs.gov/hipaa/for-professionals/covered-entities/sample-business-associate-agreement-provisions/index.html",
+    warnings: [
+      "HIPAA matters are high-risk and should be reviewed by healthcare privacy counsel.",
+      "Confirm the parties' HIPAA roles and any state medical privacy requirements before use.",
+    ],
+    tags: ["hipaa", "healthcare", "privacy"],
+  },
+};
+
+function hardenTemplate<T extends Template>(template: T): T {
+  const meta = TEMPLATE_META[template.id] ?? {};
+  const merged = {
+    ...template,
+    version: meta.version ?? template.version ?? DEFAULT_TEMPLATE_VERSION,
+    riskLevel: meta.riskLevel ?? template.riskLevel ?? "medium",
+    jurisdictionSensitive: meta.jurisdictionSensitive ?? template.jurisdictionSensitive ?? false,
+    attorneyReviewRecommended: meta.attorneyReviewRecommended ?? template.attorneyReviewRecommended ?? false,
+    officialFormSensitive: meta.officialFormSensitive ?? template.officialFormSensitive ?? false,
+    sourceUrl: meta.sourceUrl ?? template.sourceUrl,
+    lastReviewed: meta.lastReviewed ?? template.lastReviewed ?? TEMPLATE_LAST_REVIEWED,
+    warnings: [...(template.warnings ?? []), ...(meta.warnings ?? [])],
+    tags: [...(template.tags ?? []), ...(meta.tags ?? [])],
+  } as T;
+  if (merged.kind === "form") {
+    const renderBody = merged.renderBody;
+    return {
+      ...merged,
+      consentText: merged.consentText || COMMON_SIGN_CONSENT,
+      renderBody: (values: Record<string, string>) => renderBody(values) + templateFooter(merged),
+    } as T;
+  }
+  return merged;
+}
 
 // ════════════════════════════════════════════════════════════════
 // NDA — Mutual / one-way confidentiality agreement
@@ -479,7 +647,8 @@ export const TEMPLATES: Template[] = [
   waiver,
   lease,
   ...EXTRA_TEMPLATES,
-];
+  ...MORE_TEMPLATES,
+].map(hardenTemplate);
 
 export const CATEGORY_ORDER: TemplateCategory[] = [
   "Business", "HR", "Healthcare", "Real Estate", "Personal", "Finance",

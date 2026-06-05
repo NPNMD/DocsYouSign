@@ -11,8 +11,8 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "redirects": [
       {
-        "source": "**",
-        "destination": "https://docsyousign--docsyousign.us-central1.hosted.app/",
+        "source": "/:rest*",
+        "destination": "https://docsyousign--docsyousign.us-central1.hosted.app/:rest",
         "type": 302
       }
     ]

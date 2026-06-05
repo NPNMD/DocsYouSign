@@ -6,8 +6,8 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import { signFormDocument, saveFormData, createSigningRequest } from "@/lib/documents";
-import { sendSigningInvite } from "@/lib/signing";
 import SignaturePad from "@/components/SignaturePad";
+import { riskTone, templateWarnings } from "@/lib/template-utils";
 import type { FormTemplate, TemplateFieldDef } from "@/lib/types";
 
 type Step = 1 | 2 | 3 | 4;
@@ -36,7 +36,6 @@ function FormSignInner() {
   const [recipEmail, setRecipEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sentLink, setSentLink] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
   const [sendError, setSendError] = useState("");
 
   useEffect(() => {
@@ -100,7 +99,11 @@ function FormSignInner() {
     setSaving(true);
     try {
       const finalValues = { ...values, _printedName: printName.trim() };
-      await signFormDocument(docId, finalValues, printName.trim(), signature);
+      await signFormDocument(docId, finalValues, printName.trim(), signature, {
+        html: bodyHtml,
+        version: template?.version,
+        riskLevel: template?.riskLevel,
+      });
       const id = "DYS-" + Array.from({ length: 10 }, () =>
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
       setAgreementId(id);
@@ -109,7 +112,7 @@ function FormSignInner() {
       console.error("Sign failed:", e);
       setSaving(false);
     }
-  }, [signature, consent, printName, values, docId]);
+  }, [signature, consent, printName, values, docId, bodyHtml, template]);
 
   const sendForSignature = useCallback(async () => {
     if (!user || !docId) return;
@@ -117,7 +120,6 @@ function FormSignInner() {
     if (!recipName.trim()) { setSendError("Enter the recipient's name."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setSendError("Enter a valid recipient email."); return; }
     setSendError("");
-    setEmailSent(false);
     setSending(true);
     try {
       await saveFormData(docId, values).catch(() => {});
@@ -126,15 +128,8 @@ function FormSignInner() {
         { id: user.uid, email: user.email ?? "" },
         { name: recipName.trim(), email }
       );
-      const link = `${window.location.origin}/sign-request?token=${req.token}&e=${encodeURIComponent(email)}`;
+      const link = `${window.location.origin}/sign-request?token=${req.token}`;
       setSentLink(link);
-      try {
-        await sendSigningInvite(email, req.token);
-        setEmailSent(true);
-      } catch (emailErr) {
-        console.error("Email invite failed:", emailErr);
-        setEmailSent(false);
-      }
     } catch (e) {
       console.error("Send failed:", e);
       setSentLink("");
@@ -196,6 +191,7 @@ function FormSignInner() {
           <div>
             <h1 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--navy)" }}>{template.name}</h1>
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Fill in the details below. They&apos;ll be embedded into the document.</p>
+            <TemplateRiskNotice template={template} />
             <div className="p-5 sm:p-6 rounded-xl" style={{ background: "white", border: "1px solid var(--border)" }}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {template.fields
@@ -218,6 +214,7 @@ function FormSignInner() {
           <div>
             <h1 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--navy)" }}>Review Document</h1>
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Read carefully before signing.</p>
+            <TemplateRiskNotice template={template} compact />
             <div className="rounded-xl overflow-hidden" style={{ background: "white", border: "1px solid var(--border)" }}>
               <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
             </div>
@@ -231,7 +228,7 @@ function FormSignInner() {
                 Sign It Myself →
               </button>
             </div>
-            <button onClick={() => { setShowSend(true); setSentLink(""); setEmailSent(false); setSendError(""); }}
+            <button onClick={() => { setShowSend(true); setSentLink(""); setSendError(""); }}
               className="w-full mt-3 py-3 rounded-xl font-semibold"
               style={{ background: "white", color: "var(--navy)", border: "1.5px solid var(--gold)" }}>
               ✉️ Send to Someone Else to Sign
@@ -243,6 +240,7 @@ function FormSignInner() {
           <div>
             <h1 className="font-display text-2xl font-bold mb-1" style={{ color: "var(--navy)" }}>Apply Your Signature</h1>
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Draw or type your signature to execute this agreement.</p>
+            <TemplateRiskNotice template={template} compact />
             <div className="p-6 rounded-xl space-y-5" style={{ background: "white", border: "1px solid var(--border)" }}>
               <SignaturePad onSave={setSignature} />
               <div>
@@ -311,14 +309,12 @@ function FormSignInner() {
             {sentLink ? (
               <div>
                 <div className="text-center mb-4">
-                  <div className="text-4xl mb-2">{emailSent ? "📨" : "🔗"}</div>
+                  <div className="text-4xl mb-2">🔗</div>
                   <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>
-                    {emailSent ? "Invitation sent" : "Signing link ready"}
+                    Signing link ready
                   </h2>
                   <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-                    {emailSent
-                      ? `${recipName} (${recipEmail}) will get a secure link to verify and sign. You can also share the link directly:`
-                      : `We couldn't email it automatically yet. Copy and send this link to ${recipEmail} directly:`}
+                    Share this link with {recipName || "the recipient"}. They can open it and sign immediately — no account or login required.
                   </p>
                 </div>
                 <div className="flex gap-2 mb-4">
@@ -338,7 +334,7 @@ function FormSignInner() {
               <div>
                 <h2 className="font-display text-xl font-bold mb-1" style={{ color: "var(--navy)" }}>Send for signature</h2>
                 <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-                  The recipient verifies their email (no password) and signs the document you filled in.
+                  We&apos;ll generate a secure signing link. The recipient opens it and signs the document you filled in — no account needed.
                 </p>
                 <div className="space-y-3">
                   <div>
@@ -362,7 +358,7 @@ function FormSignInner() {
                   <button onClick={sendForSignature} disabled={sending}
                     className="flex-1 py-3 rounded-xl font-semibold disabled:opacity-50"
                     style={{ background: "var(--gold)", color: "var(--navy)" }}>
-                    {sending ? "Sending…" : "Send invitation →"}
+                    {sending ? "Creating…" : "Create signing link →"}
                   </button>
                 </div>
               </div>
@@ -399,6 +395,40 @@ function FieldInput({ f, value, error, onChange }: {
           className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={baseStyle} />
       )}
       {error && <p className="text-xs mt-1" style={{ color: "var(--danger)" }}>Required</p>}
+    </div>
+  );
+}
+
+function TemplateRiskNotice({ template, compact = false }: { template: FormTemplate; compact?: boolean }) {
+  const tone = riskTone(template.riskLevel);
+  const warnings = templateWarnings(template);
+  return (
+    <div className={compact ? "mb-4 p-3 rounded-lg" : "mb-6 p-4 rounded-xl"}
+      style={{ background: tone.background, border: `1px solid ${tone.border}` }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: tone.color }}>
+          {tone.label} risk template
+        </span>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>v{template.version ?? "1.0.0"}</span>
+        {template.jurisdictionSensitive && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Jurisdiction-sensitive</span>}
+        {template.attorneyReviewRecommended && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Review recommended</span>}
+      </div>
+      {!compact && warnings.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {warnings.slice(0, 4).map((warning) => (
+            <li key={warning} className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              {warning}
+            </li>
+          ))}
+        </ul>
+      )}
+      {template.sourceUrl && (
+        <a href={template.sourceUrl} target="_blank" rel="noreferrer"
+          className="text-xs font-semibold inline-block mt-2"
+          style={{ color: "var(--navy)" }}>
+          Official/reference source →
+        </a>
+      )}
     </div>
   );
 }

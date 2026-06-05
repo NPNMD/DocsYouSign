@@ -168,7 +168,6 @@ export async function createDocumentFromTemplate(
     templateId: template.id,
     templateVersion: template.version ?? "1.0.0",
     templateRiskLevel: template.riskLevel ?? "medium",
-    templateAcknowledgedAt: acknowledgment ? Timestamp.fromDate(acknowledgment.acknowledgedAt) : undefined,
     formData: {},
     createdAt: now,
     updatedAt: now,

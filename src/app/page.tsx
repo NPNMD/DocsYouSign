@@ -8,6 +8,16 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  // Safety net: if an old/broken link landed a recipient on "/" with a token,
+  // forward them to the signing portal so the link still works.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (token) {
+      router.replace(`/sign-request?token=${encodeURIComponent(token)}`);
+    }
+  }, [router]);
+
   useEffect(() => {
     if (!loading && user) {
       router.push("/dashboard");
