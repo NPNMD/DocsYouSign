@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [docsError, setDocsError] = useState<string | null>(null);
+  const [subKey, setSubKey] = useState(0); // increment to re-subscribe
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -22,6 +23,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
+    setDocsLoading(true);
     const unsub = subscribeToUserDocuments(
       user.uid,
       (docs) => {
@@ -32,11 +34,11 @@ export default function DashboardPage() {
       (err) => {
         console.error("Failed to load documents:", err);
         setDocsLoading(false);
-        setDocsError("Could not load your documents. Try refreshing the page.");
+        setDocsError("Could not load your documents. Check your connection and try again.");
       }
     );
     return unsub;
-  }, [user]);
+  }, [user, subKey]);
 
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
@@ -77,7 +79,12 @@ export default function DashboardPage() {
   }
 
   const signed = documents.filter(d => d.status === "signed" || d.status === "completed");
-  const active = documents.filter(d => d.status !== "signed" && d.status !== "completed");
+  const outForSig = documents.filter(d =>
+    d.signingRequestId && d.status !== "signed" && d.status !== "completed"
+  );
+  const active = documents.filter(d =>
+    !d.signingRequestId && d.status !== "signed" && d.status !== "completed"
+  );
 
   return (
     <div className="min-h-screen" style={{ background: "var(--cream)" }}>
@@ -121,7 +128,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: "Total", value: documents.length, icon: "📁" },
-            { label: "Active", value: active.length, icon: "⏳" },
+            { label: "Awaiting", value: outForSig.length, icon: "✉️" },
             { label: "Signed", value: signed.length, icon: "✅" },
           ].map((s) => (
             <div key={s.label} className="p-4 rounded-xl flex items-center gap-3"
@@ -175,9 +182,20 @@ export default function DashboardPage() {
         <UploadZone onUpload={handleUpload} uploading={uploading} uploadError={uploadError} />
 
         {docsError && (
-          <p className="mt-6 text-sm text-center font-medium" style={{ color: "#dc2626" }}>
-            {docsError}
-          </p>
+          <div className="mt-6 p-4 rounded-xl flex items-center gap-4"
+            style={{ background: "#fef2f2", border: "1px solid #fca5a5" }}>
+            <span className="text-xl flex-shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: "#991b1b" }}>Could not load documents</p>
+              <p className="text-xs mt-0.5" style={{ color: "#b91c1c" }}>{docsError}</p>
+            </div>
+            <button
+              onClick={() => { setDocsError(null); setDocsLoading(true); setSubKey(k => k + 1); }}
+              className="px-4 py-2 rounded-lg text-xs font-semibold flex-shrink-0"
+              style={{ background: "#dc2626", color: "white" }}>
+              Retry
+            </button>
+          </div>
         )}
 
         {/* Documents list */}
@@ -199,6 +217,23 @@ export default function DashboardPage() {
                   </h2>
                   <div className="space-y-3">
                     {active.map((doc) => (
+                      <DocumentCard key={doc.id} doc={doc} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {outForSig.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="font-display text-base font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--navy)" }}>
+                    <span>✉️ Out for Signature</span>
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(201,168,76,0.18)", color: "var(--navy)" }}>
+                      {outForSig.length} awaiting
+                    </span>
+                  </h2>
+                  <div className="space-y-3">
+                    {outForSig.map((doc) => (
                       <DocumentCard key={doc.id} doc={doc} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} />
                     ))}
                   </div>

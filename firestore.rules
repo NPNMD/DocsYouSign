@@ -19,8 +19,11 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.ownerId;
 
-      // Owner sees their docs; a verified recipient can read the doc sent to them.
-      allow read: if isOwner() || isPendingSigner();
+      // Only the owner may list documents (used by the dashboard query).
+      // A recipient can get a single doc by ID (token-based sign flow uses Admin SDK,
+      // but splitting here prevents recipients from listing the owner's library).
+      allow get: if isOwner() || isPendingSigner();
+      allow list: if isOwner();
 
       // Owner can update freely. A recipient may update (to sign) but cannot
       // change ownership or who the doc was sent to.
@@ -45,7 +48,9 @@ service cloud.firestore {
 
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.senderId;
-      allow read: if isSender() || isRecipient();
+      // Sender can list their requests; both sender and recipient can get by ID.
+      allow get: if isSender() || isRecipient();
+      allow list: if isSender();
       // Recipient may update status/audit when signing; sender may manage too.
       allow update: if isSender() || isRecipient();
       allow delete: if isSender();

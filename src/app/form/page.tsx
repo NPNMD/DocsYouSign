@@ -31,6 +31,12 @@ function FormSignInner() {
   const [saving, setSaving] = useState(false);
   const [agreementId, setAgreementId] = useState("");
 
+  // Stored signature from Firestore (populated when doc is already signed on load)
+  const [storedSignature, setStoredSignature] = useState<string | null>(null);
+  const [storedSignerName, setStoredSignerName] = useState("");
+  const [storedSignedAt, setStoredSignedAt] = useState<Date | null>(null);
+  const [storedSigRole, setStoredSigRole] = useState<"primary" | "counterparty">("primary");
+
   // Send-to-sign
   const [showSend, setShowSend] = useState(false);
   const [recipName, setRecipName] = useState("");
@@ -59,7 +65,17 @@ function FormSignInner() {
       tpl.fields.forEach((f) => { if (f.defaultValue) seeded[f.key] = f.defaultValue; });
       const saved = (data.formData as Record<string, string>) ?? {};
       setValues({ ...seeded, ...saved });
-      if (data.status === "signed") setStep(4);
+      if (data.status === "signed") {
+        // Load the stored signature so the sender can see the inline signature
+        // whether it was self-signed or signed by a recipient.
+        const sigField = (data.fields as Array<{ value?: string }> | undefined)?.[0];
+        if (sigField?.value) setStoredSignature(sigField.value);
+        if (data.signerName) setStoredSignerName(data.signerName as string);
+        if (data.signedAt) setStoredSignedAt((data.signedAt as { toDate: () => Date }).toDate());
+        // signingRequestId exists only when a recipient signed via send-for-signature
+        setStoredSigRole(data.signingRequestId ? "counterparty" : "primary");
+        setStep(4);
+      }
       setDocLoading(false);
     })();
   }, [user, docId, router]);
@@ -96,15 +112,22 @@ function FormSignInner() {
   );
 
   const signedBodyHtml = useMemo(() => {
-    if (!template || !signature) return bodyHtml;
+    // Use local canvas sig first (just signed), then stored sig from Firestore (revisit/sender view)
+    const sigImg = signature ?? storedSignature;
+    if (!template || !sigImg) return bodyHtml;
+    const sigName = printName.trim() || storedSignerName;
+    const sigDate = storedSignedAt
+      ? storedSignedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : today();
+    const sigRole = signature ? "primary" : storedSigRole;
     return template.renderBody({
       ...values,
-      __sigImg: signature,
-      __sigName: printName.trim(),
-      __sigDate: today(),
-      __sigRole: "primary",
+      __sigImg: sigImg,
+      __sigName: sigName,
+      __sigDate: sigDate,
+      __sigRole: sigRole,
     });
-  }, [template, values, signature, printName, bodyHtml]);
+  }, [template, values, signature, printName, bodyHtml, storedSignature, storedSignerName, storedSignedAt, storedSigRole]);
 
   const submit = useCallback(async () => {
     if (!signature || !consent || !printName.trim() || !docId) return;
@@ -291,9 +314,15 @@ function FormSignInner() {
           <div className="text-center py-8">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl"
               style={{ background: "rgba(26,107,71,0.12)", border: "3px solid rgba(26,107,71,0.3)" }}>✅</div>
-            <h1 className="font-display text-2xl font-bold mb-2" style={{ color: "var(--navy)" }}>Agreement Signed</h1>
+            <h1 className="font-display text-2xl font-bold mb-2" style={{ color: "var(--navy)" }}>
+              {storedSigRole === "counterparty" && storedSignerName
+                ? `Signed by ${storedSignerName}`
+                : "Agreement Signed"}
+            </h1>
             <p className="text-sm max-w-md mx-auto mb-6" style={{ color: "var(--text-muted)" }}>
-              Your {template.name} has been signed and recorded. Save or print a copy for your records.
+              {storedSigRole === "counterparty" && storedSignerName
+                ? `${storedSignerName} has signed this document. Save or print a copy for your records.`
+                : `Your ${template.name} has been signed and recorded. Save or print a copy for your records.`}
             </p>
             {agreementId && (
               <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
