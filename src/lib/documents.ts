@@ -37,6 +37,11 @@ function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Do
     fileSize: data.fileSize as number | undefined,
     kind: (data.kind as Document["kind"]) ?? "pdf",
     templateId: data.templateId as string | undefined,
+    templateVersion: data.templateVersion as string | undefined,
+    templateRiskLevel: data.templateRiskLevel as Document["templateRiskLevel"],
+    templateAcknowledgedAt: data.templateAcknowledgedAt ? (data.templateAcknowledgedAt as Timestamp).toDate() : undefined,
+    templateSnapshotHtml: data.templateSnapshotHtml as string | undefined,
+    templateSnapshotHash: data.templateSnapshotHash as string | undefined,
     formData: (data.formData as Record<string, string> | undefined) ?? undefined,
     pendingSignerEmail: data.pendingSignerEmail as string | undefined,
     signingRequestId: data.signingRequestId as string | undefined,
@@ -146,13 +151,14 @@ export async function deleteDocument(documentId: string, storagePath?: string): 
 export async function createDocumentFromTemplate(
   template: Template,
   userId: string,
-  userEmail: string
+  userEmail: string,
+  acknowledgment?: { acknowledgedAt: Date }
 ): Promise<Document> {
   if (template.kind !== "form") {
     throw new Error("PDF templates are not supported yet in createDocumentFromTemplate.");
   }
   const now = Timestamp.fromDate(new Date());
-  const docData = {
+  const docData: Record<string, unknown> = {
     name: template.name,
     ownerId: userId,
     ownerEmail: userEmail,
@@ -160,17 +166,40 @@ export async function createDocumentFromTemplate(
     fields: [],
     kind: "form" as const,
     templateId: template.id,
+    templateVersion: template.version ?? "1.0.0",
+    templateRiskLevel: template.riskLevel ?? "medium",
+    templateAcknowledgedAt: acknowledgment ? Timestamp.fromDate(acknowledgment.acknowledgedAt) : undefined,
     formData: {},
     createdAt: now,
     updatedAt: now,
   };
+  if (acknowledgment) {
+    docData.templateAcknowledgedAt = Timestamp.fromDate(acknowledgment.acknowledgedAt);
+  }
   const docRef = await addDoc(collection(db, "documents"), docData);
   return {
-    ...docData,
+    name: template.name,
+    ownerId: userId,
+    ownerEmail: userEmail,
+    status: "draft",
+    fields: [],
+    kind: "form",
+    templateId: template.id,
+    templateVersion: template.version ?? "1.0.0",
+    templateRiskLevel: template.riskLevel ?? "medium",
+    formData: {},
     id: docRef.id,
     createdAt: new Date(),
     updatedAt: new Date(),
+    templateAcknowledgedAt: acknowledgment?.acknowledgedAt,
   };
+}
+
+async function hashString(value: string): Promise<string | undefined> {
+  if (typeof crypto === "undefined" || !crypto.subtle) return undefined;
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Persist progress on a form document (filled values), without completing it. */
@@ -190,9 +219,15 @@ export async function signFormDocument(
   documentId: string,
   formData: Record<string, string>,
   signerName: string,
-  signatureDataUrl: string
+  signatureDataUrl: string,
+  templateSnapshot?: {
+    html: string;
+    version?: string;
+    riskLevel?: Document["templateRiskLevel"];
+  }
 ): Promise<void> {
   const now = Timestamp.fromDate(new Date());
+  const snapshotHash = templateSnapshot?.html ? await hashString(templateSnapshot.html) : undefined;
   const signatureField: DocumentField = {
     id: "form-signature",
     type: "signature",
@@ -201,14 +236,19 @@ export async function signFormDocument(
     value: signatureDataUrl,
     label: "Signature",
   };
-  await updateDoc(doc(db, "documents", documentId), {
+  const updateData: Record<string, unknown> = {
     formData,
     fields: [signatureField],
     signerName,
     status: "signed",
     signedAt: now,
     updatedAt: now,
-  });
+  };
+  if (templateSnapshot?.html) updateData.templateSnapshotHtml = templateSnapshot.html;
+  if (snapshotHash) updateData.templateSnapshotHash = snapshotHash;
+  if (templateSnapshot?.version) updateData.templateVersion = templateSnapshot.version;
+  if (templateSnapshot?.riskLevel) updateData.templateRiskLevel = templateSnapshot.riskLevel;
+  await updateDoc(doc(db, "documents", documentId), updateData);
 }
 
 // ── Signing requests (send-to-sign foundation) ────────────────────

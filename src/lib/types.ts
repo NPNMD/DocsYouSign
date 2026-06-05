@@ -31,6 +31,11 @@ export interface Document {
   // Template support
   kind?: "pdf" | "form";        // defaults to "pdf" when absent
   templateId?: string;          // set when created from a template
+  templateVersion?: string;     // exact catalog version used to create/sign
+  templateRiskLevel?: TemplateRiskLevel;
+  templateAcknowledgedAt?: Date;
+  templateSnapshotHtml?: string; // rendered body preserved at execution time
+  templateSnapshotHash?: string; // SHA-256 of rendered body when available
   formData?: Record<string, string>; // answers for form templates
   // Send-to-sign
   pendingSignerEmail?: string;  // recipient email (lowercased) authorized to sign
@@ -45,6 +50,8 @@ export type TemplateCategory =
   | "Real Estate"
   | "Personal"
   | "Finance";
+
+export type TemplateRiskLevel = "low" | "medium" | "high" | "restricted";
 
 export type TemplateFieldInput = "text" | "email" | "tel" | "textarea" | "select" | "date";
 
@@ -68,6 +75,15 @@ export interface BaseTemplate {
   category: TemplateCategory;
   description: string;
   icon: string;                // emoji for the gallery card
+  version?: string;
+  riskLevel?: TemplateRiskLevel;
+  jurisdictionSensitive?: boolean;
+  attorneyReviewRecommended?: boolean;
+  officialFormSensitive?: boolean;
+  sourceUrl?: string;
+  lastReviewed?: string;       // ISO date string
+  warnings?: string[];
+  tags?: string[];
 }
 
 export interface FormTemplate extends BaseTemplate {
