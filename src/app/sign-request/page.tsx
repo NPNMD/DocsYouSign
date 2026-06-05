@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import SignaturePad from "@/components/SignaturePad";
-import { riskTone, templateWarnings } from "@/lib/template-utils";
+import { riskTone, templateWarnings, today } from "@/lib/template-utils";
 import type { FormTemplate } from "@/lib/types";
 
 type Phase = "loading" | "review" | "sign" | "done" | "error";
@@ -19,6 +19,9 @@ interface DocInfo {
   templateId: string | null;
   formData: Record<string, string>;
   status: string;
+  signatureDataUrl?: string | null;
+  signerName?: string | null;
+  signedAt?: string | null;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -60,6 +63,9 @@ function SignRequestInner() {
   const [printName, setPrintName] = useState("");
   const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
+  const [savedSignerName, setSavedSignerName] = useState("");
+  const [savedSignedAt, setSavedSignedAt] = useState<string | null>(null);
 
   // Load the request + document by token (no login required).
   useEffect(() => {
@@ -81,6 +87,11 @@ function SignRequestInner() {
         setRequest(data.request);
         setDocData(data.document);
         setPrintName(data.request.recipientName || "");
+        if (data.document.signatureDataUrl) {
+          setSavedSignature(data.document.signatureDataUrl);
+          setSavedSignerName(data.document.signerName ?? data.request.recipientName ?? "");
+          setSavedSignedAt(data.document.signedAt ?? null);
+        }
         if (data.request.status === "signed" || data.document.status === "signed") {
           setPhase("done");
           return;
@@ -103,6 +114,20 @@ function SignRequestInner() {
     [template, docData]
   );
 
+  const signedBodyHtml = useMemo(() => {
+    if (!template || !docData || !savedSignature) return bodyHtml;
+    const dateStr = savedSignedAt
+      ? new Date(savedSignedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : today();
+    return template.renderBody({
+      ...(docData.formData ?? {}),
+      __sigImg: savedSignature,
+      __sigName: savedSignerName || printName.trim(),
+      __sigDate: dateStr,
+      __sigRole: "counterparty",
+    });
+  }, [template, docData, savedSignature, savedSignerName, savedSignedAt, printName, bodyHtml]);
+
   const submit = useCallback(async () => {
     if (!docData || !signature || !consent || !printName.trim()) return;
     setSaving(true);
@@ -114,6 +139,9 @@ function SignRequestInner() {
         body: JSON.stringify({ printName: printName.trim(), signatureDataUrl: signature, consent }),
       });
       if (res.status === 409) {
+        setSavedSignature(signature);
+        setSavedSignerName(printName.trim());
+        setSavedSignedAt(new Date().toISOString());
         setPhase("done");
         return;
       }
@@ -122,6 +150,9 @@ function SignRequestInner() {
         setSaving(false);
         return;
       }
+      setSavedSignature(signature);
+      setSavedSignerName(printName.trim());
+      setSavedSignedAt(new Date().toISOString());
       setPhase("done");
     } catch (e) {
       console.error(e);
@@ -163,8 +194,8 @@ function SignRequestInner() {
             {request?.senderEmail ? ` and ${request.senderEmail} has been notified` : ""}. You can print or save a copy below.
           </p>
           {template && (
-            <div className="rounded-xl overflow-hidden text-left mb-6" style={{ background: "white", border: "1px solid var(--border)" }}>
-              <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            <div className="rounded-xl tpl-doc-outer text-left mb-6" style={{ background: "white", border: "1px solid var(--border)" }}>
+              <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: signedBodyHtml }} />
             </div>
           )}
           <button onClick={() => window.print()} className="px-6 py-3 rounded-xl font-semibold no-print"

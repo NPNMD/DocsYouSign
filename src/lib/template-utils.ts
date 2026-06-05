@@ -88,3 +88,60 @@ export function templateFooter(template: Pick<Template, "id" | "version" | "risk
       Provided for convenience and general informational purposes only, not legal advice.
     </div>`;
 }
+
+export type SignatureRole = "primary" | "counterparty";
+
+/** Placeholder span templates use to mark where a drawn signature should appear. */
+export function sigAnchor(role: SignatureRole = "primary"): string {
+  return `<span class="tpl-sig-anchor" data-sig-role="${role}"></span>`;
+}
+
+const ANCHOR_RE = /<span class="tpl-sig-anchor" data-sig-role="(primary|counterparty)"><\/span>/g;
+
+function signatureMarkup(img: string, name: string, date: string): string {
+  return (
+    `<span class="tpl-sig">` +
+    `<img class="tpl-sig-img" src="${img}" alt="Signature"/>` +
+    `<span class="tpl-sig-name">${esc(name)}</span>` +
+    `<span class="tpl-sig-date">Signed ${esc(date)}</span>` +
+    `</span>`
+  );
+}
+
+function replaceAnchor(html: string, role: SignatureRole, markup: string): { html: string; replaced: boolean } {
+  let replaced = false;
+  const next = html.replace(ANCHOR_RE, (match, anchorRole: SignatureRole) => {
+    if (anchorRole === role) {
+      replaced = true;
+      return markup;
+    }
+    return match;
+  });
+  return { html: next, replaced };
+}
+
+/**
+ * Inject a drawn signature into template HTML at the correct signer anchor.
+ * Falls back to the primary anchor, then appends a block if no anchors exist.
+ */
+export function applySignature(
+  html: string,
+  opts: { img: string; name: string; date: string; role: SignatureRole }
+): string {
+  const markup = signatureMarkup(opts.img, opts.name, opts.date);
+  let out = html;
+
+  let { html: withRole, replaced } = replaceAnchor(out, opts.role, markup);
+  out = withRole;
+  if (!replaced && opts.role === "counterparty") {
+    ({ html: out, replaced } = replaceAnchor(out, "primary", markup));
+  }
+
+  if (!replaced && !/<span class="tpl-sig-anchor"/.test(html)) {
+    out +=
+      `<div class="tpl-section">Electronic Signature</div>` +
+      `<div class="tpl-parties"><div>${markup}</div></div>`;
+  }
+
+  return out.replace(ANCHOR_RE, "");
+}

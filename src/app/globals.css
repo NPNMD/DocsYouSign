@@ -175,6 +175,10 @@ body {
   line-height: 1.5;
   color: var(--text-muted);
 }
+.tpl-sig { display: inline-block; margin-bottom: 6px; }
+.tpl-sig-img { max-height: 64px; max-width: 280px; display: block; margin-bottom: 2px; }
+.tpl-sig-name { font-weight: 600; color: var(--navy); font-size: 13px; }
+.tpl-sig-date { display: block; font-size: 10px; color: var(--text-muted); }
 
 /* ── Mobile ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
@@ -185,5 +189,6 @@ body {
 /* ── Print ───────────────────────────────────────────────────── */
 @media print {
   .no-print { display: none !important; }
+  .tpl-doc-outer { overflow: visible !important; max-height: none !important; }
   .tpl-doc-body { max-height: none !important; overflow: visible !important; }
 }

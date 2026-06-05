@@ -5,6 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
+import { today } from "@/lib/template-utils";
 import { signFormDocument, saveFormData, createSigningRequest } from "@/lib/documents";
 import SignaturePad from "@/components/SignaturePad";
 import { riskTone, templateWarnings } from "@/lib/template-utils";
@@ -93,6 +94,17 @@ function FormSignInner() {
     () => (template ? template.renderBody(values) : ""),
     [template, values]
   );
+
+  const signedBodyHtml = useMemo(() => {
+    if (!template || !signature) return bodyHtml;
+    return template.renderBody({
+      ...values,
+      __sigImg: signature,
+      __sigName: printName.trim(),
+      __sigDate: today(),
+      __sigRole: "primary",
+    });
+  }, [template, values, signature, printName, bodyHtml]);
 
   const submit = useCallback(async () => {
     if (!signature || !consent || !printName.trim() || !docId) return;
@@ -288,8 +300,8 @@ function FormSignInner() {
                 Agreement ID: <span className="font-mono font-semibold" style={{ color: "var(--navy)" }}>{agreementId}</span>
               </p>
             )}
-            <div className="rounded-xl overflow-hidden text-left mb-6" style={{ background: "white", border: "1px solid var(--border)" }}>
-              <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            <div className="rounded-xl tpl-doc-outer text-left mb-6" style={{ background: "white", border: "1px solid var(--border)" }}>
+              <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: signedBodyHtml }} />
             </div>
             <div className="flex gap-3 justify-center no-print">
               <button onClick={() => window.print()} className="px-6 py-3 rounded-xl font-semibold"

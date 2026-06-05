@@ -58,6 +58,10 @@ export async function GET(_req: Request, { params }: RouteCtx) {
         templateId: docData.templateId ?? null,
         formData: docData.formData ?? {},
         status: docData.status ?? "sent",
+        signatureDataUrl:
+          docData.status === "signed" ? (docData.fields?.[0]?.value ?? null) : null,
+        signerName: docData.signerName ?? null,
+        signedAt: docData.signedAt?.toDate?.()?.toISOString?.() ?? null,
       },
     });
   } catch (e) {

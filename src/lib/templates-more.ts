@@ -1,5 +1,5 @@
 import type { FormTemplate, TemplateFieldDef } from "./types";
-import { esc, fill, today, pick } from "./template-utils";
+import { esc, fill, today, pick, sigAnchor } from "./template-utils";
 
 const SIGN_CONSENT =
   "I have read and agree to be bound by this document, I confirm I am authorized to sign, and I intend my electronic signature to have the same legal effect as a handwritten signature under the E-SIGN Act and applicable state UETA.";
@@ -12,8 +12,8 @@ function sig(aLabel: string, aName: string, bLabel?: string, bName?: string): st
   return `
     <div class="tpl-section">Signatures</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">${esc(aLabel)}</div><div class="tpl-pval" style="margin-top:6px">${aName}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
-      ${bLabel ? `<div><div class="tpl-plabel">${esc(bLabel)}</div><div class="tpl-pval" style="margin-top:6px">${bName ?? ""}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>` : ""}
+      <div><div class="tpl-plabel">${esc(aLabel)}</div><div class="tpl-pval" style="margin-top:6px">${aName}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
+      ${bLabel ? `<div><div class="tpl-plabel">${esc(bLabel)}</div><div class="tpl-pval" style="margin-top:6px">${bName ?? ""}</div><div class="tpl-psub">${sigAnchor("counterparty")}Date: ${esc(today())}</div></div>` : ""}
     </div>`;
 }
 

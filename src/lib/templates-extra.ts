@@ -1,5 +1,5 @@
 import type { FormTemplate, TemplateFieldDef } from "./types";
-import { esc, fill, today, pick } from "./template-utils";
+import { esc, fill, today, pick, sigAnchor } from "./template-utils";
 
 /**
  * Additional stock business agreements (form templates).
@@ -20,8 +20,8 @@ function sig(aLabel: string, aName: string, bLabel: string, bName: string): stri
   return `
     <div class="tpl-section">Signatures</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">${esc(aLabel)}</div><div class="tpl-pval" style="margin-top:6px">${aName}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
-      <div><div class="tpl-plabel">${esc(bLabel)}</div><div class="tpl-pval" style="margin-top:6px">${bName}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">${esc(aLabel)}</div><div class="tpl-pval" style="margin-top:6px">${aName}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">${esc(bLabel)}</div><div class="tpl-pval" style="margin-top:6px">${bName}</div><div class="tpl-psub">${sigAnchor("counterparty")}Date: ${esc(today())}</div></div>
     </div>`;
 }
 
@@ -555,7 +555,7 @@ function operatingBody(v: Record<string, string>): string {
     ${S("6. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
     <div class="tpl-section">Signatures</div>
     <p style="font-size:12px;color:#666;">Executed by the Members as of ${esc(today())}. Each Member's electronic signature is captured below.</p>
-    <div class="tpl-parties"><div><div class="tpl-plabel">Member</div><div class="tpl-pval" style="margin-top:6px">${fill(v.members ? v.members.split(/\n|,/)[0].trim() : "", "[Member]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div></div>`;
+    <div class="tpl-parties"><div><div class="tpl-plabel">Member</div><div class="tpl-pval" style="margin-top:6px">${fill(v.members ? v.members.split(/\n|,/)[0].trim() : "", "[Member]")}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div></div>`;
 }
 const operating: FormTemplate = {
   id: "operating-agreement", kind: "form", name: "LLC Operating Agreement", category: "Business", icon: "\u{1F3DB}\u{FE0F}",
@@ -588,7 +588,7 @@ function partnershipBody(v: Record<string, string>): string {
     ${S("6. Governing Law")}<p>Governed by the laws of the State of ${esc(st)}.</p>
     <div class="tpl-section">Signatures</div>
     <p style="font-size:12px;color:#666;">Executed by the Partners as of ${esc(today())}.</p>
-    <div class="tpl-parties"><div><div class="tpl-plabel">Partner</div><div class="tpl-pval" style="margin-top:6px">${fill(v.partners ? v.partners.split(/\n|,/)[0].trim() : "", "[Partner]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div></div>`;
+    <div class="tpl-parties"><div><div class="tpl-plabel">Partner</div><div class="tpl-pval" style="margin-top:6px">${fill(v.partners ? v.partners.split(/\n|,/)[0].trim() : "", "[Partner]")}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div></div>`;
 }
 const partnership: FormTemplate = {
   id: "partnership", kind: "form", name: "Partnership Agreement", category: "Business", icon: "\u{1F46F}",

@@ -1,5 +1,5 @@
 import type { Template, FormTemplate, TemplateCategory, TemplateFieldDef } from "./types";
-import { esc, fill, today, pick, DEFAULT_TEMPLATE_VERSION, TEMPLATE_LAST_REVIEWED, templateFooter } from "./template-utils";
+import { esc, fill, today, pick, DEFAULT_TEMPLATE_VERSION, TEMPLATE_LAST_REVIEWED, templateFooter, applySignature, sigAnchor } from "./template-utils";
 import { EXTRA_TEMPLATES } from "./templates-extra";
 import { MORE_TEMPLATES } from "./templates-more";
 
@@ -174,7 +174,16 @@ function hardenTemplate<T extends Template>(template: T): T {
     return {
       ...merged,
       consentText: merged.consentText || COMMON_SIGN_CONSENT,
-      renderBody: (values: Record<string, string>) => renderBody(values) + templateFooter(merged),
+      renderBody: (values: Record<string, string>) => {
+        const html = renderBody(values) + templateFooter(merged);
+        if (!values.__sigImg) return html;
+        return applySignature(html, {
+          img: values.__sigImg,
+          name: values.__sigName ?? "",
+          date: values.__sigDate || today(),
+          role: values.__sigRole === "counterparty" ? "counterparty" : "primary",
+        });
+      },
     } as T;
   }
   return merged;
@@ -263,12 +272,12 @@ function ndaRenderBody(v: Record<string, string>): string {
       <div>
         <div class="tpl-plabel">Party A</div>
         <div class="tpl-pval" style="margin-top:6px">${fill(a)}</div>
-        <div class="tpl-psub">By: ${aSigner ? esc(aSigner) : blank}<br>Title: ${aTitle ? esc(aTitle) : blank}<br>Date: ${esc(dateStr)}</div>
+        <div class="tpl-psub">${sigAnchor("primary")}By: ${aSigner ? esc(aSigner) : blank}<br>Title: ${aTitle ? esc(aTitle) : blank}<br>Date: ${esc(dateStr)}</div>
       </div>
       <div>
         <div class="tpl-plabel">Party B</div>
         <div class="tpl-pval" style="margin-top:6px">${fill(b, "[Party B]")}</div>
-        <div class="tpl-psub">By: ${bSigner ? esc(bSigner) : blank}<br>Title: ${bTitle ? esc(bTitle) : blank}<br>Date: ${esc(dateStr)}</div>
+        <div class="tpl-psub">${sigAnchor("counterparty")}By: ${bSigner ? esc(bSigner) : blank}<br>Title: ${bTitle ? esc(bTitle) : blank}<br>Date: ${esc(dateStr)}</div>
       </div>
     </div>
   `;
@@ -369,8 +378,8 @@ function contractorRenderBody(v: Record<string, string>): string {
 
     <div class="tpl-section">Signatures</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">Client</div><div class="tpl-pval" style="margin-top:6px">${fill(client)}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
-      <div><div class="tpl-plabel">Contractor</div><div class="tpl-pval" style="margin-top:6px">${fill(contractor, "[Contractor]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Client</div><div class="tpl-pval" style="margin-top:6px">${fill(client)}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Contractor</div><div class="tpl-pval" style="margin-top:6px">${fill(contractor, "[Contractor]")}</div><div class="tpl-psub">${sigAnchor("counterparty")}Date: ${esc(today())}</div></div>
     </div>
   `;
 }
@@ -425,7 +434,9 @@ function w9RenderBody(v: Record<string, string>): string {
     <div class="tpl-highlight">Under penalties of perjury, I certify that: (1) the number shown on this form is my correct taxpayer identification number; (2) I am not subject to backup withholding; (3) I am a U.S. citizen or other U.S. person; and (4) any FATCA code(s) entered are correct. The Internal Revenue Service does not require your consent to any provision of this document other than the certifications required to avoid backup withholding.</div>
     ${v.requester ? `<p style="font-size:11px;color:#888;">Requested by: ${esc(v.requester)}</p>` : ""}
     <div class="tpl-section">Signature</div>
-    <p>Signature of U.S. person — Date: ${esc(today())}</p>
+    <div class="tpl-parties">
+      <div><div class="tpl-plabel">Signature of U.S. person</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
+    </div>
   `;
 }
 
@@ -484,8 +495,8 @@ function offerRenderBody(v: Record<string, string>): string {
     <p>${v.offerExpires ? `This offer expires on ${fill(v.offerExpires)} if not accepted.` : ""} To accept, please sign below.</p>
     <div class="tpl-section">Acceptance</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">${esc(company)}</div><div class="tpl-psub">Authorized Representative<br>Date: ${esc(today())}</div></div>
-      <div><div class="tpl-plabel">Accepted by</div><div class="tpl-pval" style="margin-top:6px">${fill(candidate, "[Candidate]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">${esc(company)}</div><div class="tpl-psub">${sigAnchor("primary")}Authorized Representative<br>Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Accepted by</div><div class="tpl-pval" style="margin-top:6px">${fill(candidate, "[Candidate]")}</div><div class="tpl-psub">${sigAnchor("counterparty")}Date: ${esc(today())}</div></div>
     </div>
   `;
 }
@@ -551,9 +562,9 @@ function waiverRenderBody(v: Record<string, string>): string {
     <div class="tpl-section">Signature</div>
     ${isMinor
       ? `<p>As parent/legal guardian of the minor <strong>${fill(v.minorName)}</strong>, I execute this Release on the minor's behalf and on my own behalf.</p>
-         <div class="tpl-parties"><div><div class="tpl-plabel">Parent / Guardian</div><div class="tpl-pval" style="margin-top:6px">${fill(v.guardianName, "[Guardian]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+         <div class="tpl-parties"><div><div class="tpl-plabel">Parent / Guardian</div><div class="tpl-pval" style="margin-top:6px">${fill(v.guardianName, "[Guardian]")}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
          <div><div class="tpl-plabel">Minor Participant</div><div class="tpl-pval" style="margin-top:6px">${fill(v.minorName)}</div></div></div>`
-      : `<div class="tpl-parties"><div><div class="tpl-plabel">Participant</div><div class="tpl-pval" style="margin-top:6px">${fill(participant, "[Participant]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div></div>`
+      : `<div class="tpl-parties"><div><div class="tpl-plabel">Participant</div><div class="tpl-pval" style="margin-top:6px">${fill(participant, "[Participant]")}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div></div>`
     }
   `;
 }
@@ -618,8 +629,8 @@ function leaseRenderBody(v: Record<string, string>): string {
     <p>If Tenant fails to pay rent or breaches this Lease, Landlord may pursue all remedies available under the laws of the State of ${esc(state)}, including termination and eviction as permitted by law. This Lease is governed by the laws of the State of ${esc(state)}.</p>
     <div class="tpl-section">Signatures</div>
     <div class="tpl-parties">
-      <div><div class="tpl-plabel">Landlord</div><div class="tpl-pval" style="margin-top:6px">${fill(landlord, "[Landlord]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
-      <div><div class="tpl-plabel">Tenant</div><div class="tpl-pval" style="margin-top:6px">${fill(tenant, "[Tenant]")}</div><div class="tpl-psub">Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Landlord</div><div class="tpl-pval" style="margin-top:6px">${fill(landlord, "[Landlord]")}</div><div class="tpl-psub">${sigAnchor("primary")}Date: ${esc(today())}</div></div>
+      <div><div class="tpl-plabel">Tenant</div><div class="tpl-pval" style="margin-top:6px">${fill(tenant, "[Tenant]")}</div><div class="tpl-psub">${sigAnchor("counterparty")}Date: ${esc(today())}</div></div>
     </div>
   `;
 }
