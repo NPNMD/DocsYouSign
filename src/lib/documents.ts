@@ -17,6 +17,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { db, storage } from "./firebase";
 import type { Document, DocumentField, SigningRequest, CustomTemplate } from "./types";
 import type { Template } from "./types";
+import { recordActivity } from "./workspace";
 
 function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Document {
   const data = d.data();
@@ -52,13 +53,30 @@ function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Do
     signedPdfUrl: data.signedPdfUrl as string | undefined,
     certificatePath: data.certificatePath as string | undefined,
     completedAt: data.completedAt ? (data.completedAt as Timestamp).toDate() : undefined,
+    projectId: data.projectId as string | undefined,
+    projectName: data.projectName as string | undefined,
+    contactId: data.contactId as string | undefined,
+    contactName: data.contactName as string | undefined,
+    workflowId: data.workflowId as string | undefined,
+    workflowName: data.workflowName as string | undefined,
+    lastActivityAt: data.lastActivityAt ? (data.lastActivityAt as Timestamp).toDate() : undefined,
+    lastActivityLabel: data.lastActivityLabel as string | undefined,
   };
 }
 
 export async function uploadDocument(
   file: File,
   userId: string,
-  userEmail: string
+  userEmail: string,
+  options?: {
+    projectId?: string;
+    projectName?: string;
+    contactId?: string;
+    contactName?: string;
+    workflowId?: string;
+    workflowName?: string;
+    suggestedName?: string;
+  }
 ): Promise<Document> {
   const storagePath = `documents/${userId}/${Date.now()}_${file.name}`;
   const storageRef = ref(storage, storagePath);
@@ -67,7 +85,7 @@ export async function uploadDocument(
 
   const now = Timestamp.fromDate(new Date());
   const docData = {
-    name: file.name,
+    name: options?.suggestedName ? `${options.suggestedName}.pdf` : file.name,
     ownerId: userId,
     ownerEmail: userEmail,
     storageUrl: url,
@@ -77,14 +95,33 @@ export async function uploadDocument(
     createdAt: now,
     updatedAt: now,
     fileSize: file.size,
+    projectId: options?.projectId ?? "",
+    projectName: options?.projectName ?? "",
+    contactId: options?.contactId ?? "",
+    contactName: options?.contactName ?? "",
+    workflowId: options?.workflowId ?? "",
+    workflowName: options?.workflowName ?? "",
+    lastActivityAt: now,
+    lastActivityLabel: "Uploaded",
   };
 
   const docRef = await addDoc(collection(db, "documents"), docData);
+  await recordActivity(userId, {
+    documentId: docRef.id,
+    documentName: docData.name,
+    projectId: options?.projectId,
+    projectName: options?.projectName,
+    contactId: options?.contactId,
+    contactName: options?.contactName,
+    type: "uploaded",
+    label: `Uploaded ${docData.name}`,
+  }).catch(() => {});
   return {
     ...docData,
     id: docRef.id,
     createdAt: new Date(),
     updatedAt: new Date(),
+    lastActivityAt: new Date(),
   };
 }
 

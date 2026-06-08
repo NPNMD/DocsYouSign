@@ -6,7 +6,15 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { saveFields } from "@/lib/documents";
 import { sendSigningInvite } from "@/lib/signing";
-import type { Document, DocumentField, FieldType } from "@/lib/types";
+import {
+  DEFAULT_SEND_PRESETS,
+  recordActivity,
+  saveContact,
+  subscribeToContacts,
+  subscribeToSendPresets,
+  touchContact,
+} from "@/lib/workspace";
+import type { Document, DocumentField, FieldType, SavedContact, SendPreset } from "@/lib/types";
 import dynamic from "next/dynamic";
 
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
@@ -33,6 +41,13 @@ function PreparePageInner() {
   const [showSend, setShowSend] = useState(false);
   const [recipName, setRecipName] = useState("");
   const [recipEmail, setRecipEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [contacts, setContacts] = useState<SavedContact[]>([]);
+  const [presets, setPresets] = useState<SendPreset[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [saveRecipient, setSaveRecipient] = useState(true);
   const [sending, setSending] = useState(false);
   const [sentLink, setSentLink] = useState("");
   const [sendError, setSendError] = useState("");
@@ -63,6 +78,16 @@ function PreparePageInner() {
       setDocLoading(false);
     })();
   }, [user, docId, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubContacts = subscribeToContacts(user.uid, setContacts);
+    const unsubPresets = subscribeToSendPresets(user.uid, setPresets);
+    return () => {
+      unsubContacts();
+      unsubPresets();
+    };
+  }, [user]);
 
   const handlePlace = useCallback((field: DocumentField) => {
     setFields(prev => [...prev, field]);
@@ -111,17 +136,60 @@ function PreparePageInner() {
           documentName: document.name,
           recipientName: recipName.trim(),
           recipientEmail: email,
+          subject: subject.trim() || undefined,
+          message: message.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("send-failed");
       const data = (await res.json()) as { signingUrl: string; token: string };
       await sendSigningInvite(email, data.token).catch(() => {});
+      if (selectedContactId) {
+        await touchContact(selectedContactId).catch(() => {});
+      } else if (saveRecipient) {
+        await saveContact(user.uid, { name: recipName.trim(), email }).catch(() => {});
+      }
+      await recordActivity(user.uid, {
+        documentId: document.id,
+        documentName: document.name,
+        projectId: document.projectId,
+        projectName: document.projectName,
+        contactName: recipName.trim(),
+        type: "sent",
+        label: `Sent ${document.name} to ${recipName.trim()}`,
+      }).catch(() => {});
       setSentLink(data.signingUrl);
     } catch {
       setSendError("Could not send. Try again.");
     } finally {
       setSending(false);
     }
+  };
+
+  const allPresets: SendPreset[] = [
+    ...presets,
+    ...DEFAULT_SEND_PRESETS.map((preset, index) => ({
+      ...preset,
+      id: `default-${index}`,
+      ownerId: user?.uid ?? "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+  ];
+
+  const chooseContact = (contactId: string) => {
+    setSelectedContactId(contactId);
+    const contact = contacts.find((c) => c.id === contactId);
+    if (!contact) return;
+    setRecipName(contact.name);
+    setRecipEmail(contact.email);
+  };
+
+  const choosePreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    const preset = allPresets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setSubject(preset.subject);
+    setMessage(preset.message);
   };
 
   if (loading || !user || docLoading) {
@@ -270,10 +338,36 @@ function PreparePageInner() {
               </div>
             ) : (
               <>
-                <input value={recipName} onChange={(e) => setRecipName(e.target.value)} placeholder="Recipient name"
+                {contacts.length > 0 && (
+                  <select value={selectedContactId} onChange={(e) => chooseContact(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-sm mb-3 border">
+                    <option value="">Choose saved contact</option>
+                    {contacts.map((contact) => (
+                      <option key={contact.id} value={contact.id}>{contact.name} - {contact.email}</option>
+                    ))}
+                  </select>
+                )}
+                <input value={recipName} onChange={(e) => { setRecipName(e.target.value); setSelectedContactId(""); }} placeholder="Recipient name"
                   className="w-full px-4 py-3 rounded-xl text-sm mb-3 border" />
-                <input value={recipEmail} onChange={(e) => setRecipEmail(e.target.value)} placeholder="Recipient email"
+                <input value={recipEmail} onChange={(e) => { setRecipEmail(e.target.value); setSelectedContactId(""); }} placeholder="Recipient email"
                   className="w-full px-4 py-3 rounded-xl text-sm mb-3 border" />
+                <select value={selectedPresetId} onChange={(e) => choosePreset(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl text-sm mb-3 border">
+                  <option value="">Choose message preset</option>
+                  {allPresets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>{preset.name}</option>
+                  ))}
+                </select>
+                <input value={subject} onChange={(e) => { setSubject(e.target.value); setSelectedPresetId(""); }} placeholder="Email subject"
+                  className="w-full px-4 py-3 rounded-xl text-sm mb-3 border" />
+                <textarea value={message} onChange={(e) => { setMessage(e.target.value); setSelectedPresetId(""); }} placeholder="Message"
+                  className="w-full px-4 py-3 rounded-xl text-sm mb-3 border resize-y" rows={3} />
+                {!selectedContactId && (
+                  <label className="flex items-center gap-2 text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                    <input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)} />
+                    Save this recipient to contacts
+                  </label>
+                )}
                 {sendError && <p className="text-xs mb-2" style={{ color: "var(--danger)" }}>{sendError}</p>}
                 <div className="flex gap-2">
                   <button onClick={() => setShowSend(false)} className="flex-1 py-2 rounded-lg border">Cancel</button>

@@ -131,7 +131,8 @@ export function applySignature(
   const markup = signatureMarkup(opts.img, opts.name, opts.date);
   let out = html;
 
-  let { html: withRole, replaced } = replaceAnchor(out, opts.role, markup);
+  const { html: withRole, replaced: roleReplaced } = replaceAnchor(out, opts.role, markup);
+  let replaced = roleReplaced;
   out = withRole;
   if (!replaced && opts.role === "counterparty") {
     ({ html: out, replaced } = replaceAnchor(out, "primary", markup));

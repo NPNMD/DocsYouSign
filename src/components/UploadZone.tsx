@@ -2,9 +2,10 @@
 import { useCallback, useState } from "react";
 
 interface Props {
-  onUpload: (file: File) => void;
+  onUpload: (files: File[]) => void;
   uploading: boolean;
   uploadError?: string | null;
+  compact?: boolean;
 }
 
 function isPdf(file: File): boolean {
@@ -15,7 +16,7 @@ function isPdf(file: File): boolean {
   );
 }
 
-export default function UploadZone({ onUpload, uploading, uploadError }: Props) {
+export default function UploadZone({ onUpload, uploading, uploadError, compact = false }: Props) {
   const [dragging, setDragging] = useState(false);
   const [typeError, setTypeError] = useState<string | null>(null);
 
@@ -23,19 +24,24 @@ export default function UploadZone({ onUpload, uploading, uploadError }: Props) 
     e.preventDefault();
     setDragging(false);
     setTypeError(null);
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    if (!isPdf(file)) {
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    if (files.some((file) => !isPdf(file))) {
       setTypeError("Only PDF files are supported.");
       return;
     }
-    onUpload(file);
+    onUpload(files);
   }, [onUpload]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setTypeError(null);
-    const file = e.target.files?.[0];
-    if (file) onUpload(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.some((file) => !isPdf(file))) {
+      setTypeError("Only PDF files are supported.");
+      e.target.value = "";
+      return;
+    }
+    if (files.length > 0) onUpload(files);
     // Reset so the same file can be re-selected after an error
     e.target.value = "";
   }, [onUpload]);
@@ -49,17 +55,19 @@ export default function UploadZone({ onUpload, uploading, uploadError }: Props) 
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className="flex flex-col items-center justify-center w-full py-10 rounded-xl cursor-pointer transition-all duration-200"
+        className="flex flex-col items-center justify-center w-full rounded-xl cursor-pointer transition-all duration-200"
         style={{
           border: `2px dashed ${error ? "#dc2626" : dragging ? "var(--gold)" : "var(--border)"}`,
           background: dragging ? "rgba(201,168,76,0.05)" : "white",
           boxShadow: dragging ? "0 0 20px rgba(201,168,76,0.15)" : "none",
+          padding: compact ? "22px" : "40px",
         }}
       >
         <input
           id="file-upload"
           type="file"
           accept=".pdf,application/pdf"
+          multiple
           className="hidden"
           onChange={handleChange}
           disabled={uploading}
@@ -84,9 +92,9 @@ export default function UploadZone({ onUpload, uploading, uploadError }: Props) 
               </svg>
             </div>
             <p className="font-medium text-sm" style={{ color: "var(--navy)" }}>
-              Drop a PDF here, or <span style={{ color: "var(--gold)" }}>browse</span>
+              Drop PDF files here, or <span style={{ color: "var(--gold)" }}>browse</span>
             </p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>PDF files only · Max 10MB</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Multiple PDFs supported · Max 10MB each</p>
           </div>
         )}
       </label>

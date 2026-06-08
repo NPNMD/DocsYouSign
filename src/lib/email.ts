@@ -20,6 +20,8 @@ export interface InviteEmailParams {
   senderEmail: string;
   documentName: string;
   signingUrl: string;
+  subject?: string;
+  message?: string;
 }
 
 export async function sendInviteEmail(params: InviteEmailParams): Promise<boolean> {
@@ -28,16 +30,17 @@ export async function sendInviteEmail(params: InviteEmailParams): Promise<boolea
     console.warn("RESEND_API_KEY not set — skipping invite email");
     return false;
   }
-  const { recipientEmail, recipientName, senderEmail, documentName, signingUrl } = params;
+  const { recipientEmail, recipientName, senderEmail, documentName, signingUrl, subject, message } = params;
   await resend.emails.send({
     from: fromAddress(),
     to: recipientEmail,
-    subject: `${senderEmail} sent you "${documentName}" to sign`,
+    subject: subject?.trim() || `${senderEmail} sent you "${documentName}" to sign`,
     html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
         <h2 style="color:#0a1628">SignToSeal</h2>
         <p>Hi ${recipientName},</p>
         <p><strong>${senderEmail}</strong> has sent you <strong>${documentName}</strong> to review and sign.</p>
+        ${message?.trim() ? `<p style="padding:12px;background:#faf7f0;border-radius:8px">${message}</p>` : ""}
         <p><a href="${signingUrl}" style="display:inline-block;background:#c9a84c;color:#0a1628;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Review &amp; Sign Document</a></p>
         <p style="color:#666;font-size:13px">This link expires in 30 days. You will verify your email before signing.</p>
       </div>

@@ -48,6 +48,73 @@ export interface Document {
   signedPdfUrl?: string;
   certificatePath?: string;
   completedAt?: Date;
+  projectId?: string;
+  projectName?: string;
+  contactId?: string;
+  contactName?: string;
+  workflowId?: string;
+  workflowName?: string;
+  lastActivityAt?: Date;
+  lastActivityLabel?: string;
+}
+
+export interface ProjectFolder {
+  id: string;
+  ownerId: string;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SavedContact {
+  id: string;
+  ownerId: string;
+  name: string;
+  email: string;
+  company?: string;
+  role?: string;
+  notes?: string;
+  lastUsedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SendPreset {
+  id: string;
+  ownerId: string;
+  name: string;
+  subject: string;
+  message: string;
+  reminderDays: number;
+  expiresDays: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type WorkspaceActivityType =
+  | "uploaded"
+  | "renamed"
+  | "project-assigned"
+  | "prepared"
+  | "sent"
+  | "reminded"
+  | "signed"
+  | "download-ready";
+
+export interface WorkspaceActivity {
+  id: string;
+  ownerId: string;
+  documentId?: string;
+  documentName?: string;
+  projectId?: string;
+  projectName?: string;
+  contactId?: string;
+  contactName?: string;
+  type: WorkspaceActivityType;
+  label: string;
+  createdAt: Date;
 }
 
 // ── Envelope model ────────────────────────────────────────────────

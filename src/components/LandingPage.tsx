@@ -32,8 +32,8 @@ export default function LandingPage() {
 
         <div className="hidden md:flex items-center gap-8 text-sm" style={{ color: "rgba(250,247,240,0.55)" }}>
           <a href="#features" className="hover:opacity-100 transition-opacity">Features</a>
-          <a href="#why" className="hover:opacity-100 transition-opacity">Why Us</a>
-          <a href="#compare" className="hover:opacity-100 transition-opacity">vs DocuSign</a>
+          <a href="#why" className="hover:opacity-100 transition-opacity">Strengths</a>
+          <a href="#gaps" className="hover:opacity-100 transition-opacity">Gap Fillers</a>
         </div>
 
         <button
@@ -67,7 +67,7 @@ export default function LandingPage() {
           style={{ color: "rgba(250,247,240,0.6)" }}>
           Upload PDFs, use ready-made legal templates, draw your signature, and send documents
           to others for signing — all from one clean, private workspace.
-          <strong style={{ color: "rgba(250,247,240,0.85)" }}> Starting at $12/mo — 70% less than DocuSign.</strong>
+          <strong style={{ color: "rgba(250,247,240,0.85)" }}> Built to close the gaps that slow down everyday document work.</strong>
         </p>
 
         <button
@@ -93,7 +93,7 @@ export default function LandingPage() {
             { value: "$12", label: "Per month" },
             { value: "40+", label: "Templates" },
             { value: "7d", label: "Free trial" },
-            { value: "🔒", label: "Private vault" },
+            { value: "🔒", label: "Private workspace" },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <div className="font-display text-3xl font-bold" style={{ color: "var(--gold)" }}>{s.value}</div>
@@ -110,7 +110,7 @@ export default function LandingPage() {
           One app. Every signing workflow.
         </h2>
         <p className="text-center max-w-xl mx-auto mb-14" style={{ color: "rgba(250,247,240,0.5)" }}>
-          From quick personal signatures to sending contracts to clients — SignToSeal handles it all at a fraction of DocuSign&apos;s price.
+          From quick personal signatures to sending contracts to clients, SignToSeal keeps the common steps close together so fewer tasks fall through the cracks.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -126,10 +126,10 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <SectionLabel text="Why SignToSeal" />
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 text-center" style={{ color: "var(--cream)" }}>
-            Document signing shouldn&apos;t cost a fortune.
+            Strong where signing work usually gets messy.
           </h2>
           <p className="text-center max-w-2xl mx-auto mb-14" style={{ color: "rgba(250,247,240,0.5)" }}>
-            Most e-signature tools charge $30–$45/month for basic features. SignToSeal starts at $12 with 40+ built-in templates.
+            SignToSeal is focused on the practical gaps around document signing: finding the right starting point, adding fields quickly, keeping recipients moving, and downloading a complete signed PDF.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -147,52 +147,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Comparison Table ───────────────────────────────── */}
-      <section id="compare" className="px-6 md:px-10 py-20 max-w-5xl mx-auto w-full">
-        <SectionLabel text="How we compare" />
+      {/* ── Gap Fillers ────────────────────────────────────── */}
+      <section id="gaps" className="px-6 md:px-10 py-20 max-w-5xl mx-auto w-full">
+        <SectionLabel text="Gap fillers" />
         <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 text-center" style={{ color: "var(--cream)" }}>
-          SignToSeal vs the alternatives
+          Built around the missing middle.
         </h2>
         <p className="text-center max-w-xl mx-auto mb-12" style={{ color: "rgba(250,247,240,0.5)" }}>
-          Why pay $45/month when SignToSeal starts at $12?
+          A signed document is rarely just a signature. These are the gaps SignToSeal is designed to close before, during, and after signing.
         </p>
 
-        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(201,168,76,0.15)" }}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ background: "rgba(201,168,76,0.08)", borderBottom: "1px solid rgba(201,168,76,0.15)" }}>
-                <th className="text-left px-6 py-4 font-semibold" style={{ color: "rgba(250,247,240,0.5)" }}>Feature</th>
-                <th className="px-6 py-4 font-bold text-center" style={{ color: "var(--gold)" }}>SignToSeal ✦</th>
-                <th className="px-6 py-4 font-medium text-center" style={{ color: "rgba(250,247,240,0.4)" }}>DocuSign</th>
-                <th className="px-6 py-4 font-medium text-center" style={{ color: "rgba(250,247,240,0.4)" }}>HelloSign</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARE_ROWS.map((row, i) => (
-                <tr key={row.feature}
-                  style={{
-                    borderBottom: i < COMPARE_ROWS.length - 1 ? "1px solid rgba(201,168,76,0.07)" : "none",
-                    background: i % 2 === 0 ? "rgba(255,255,255,0.015)" : "transparent",
-                  }}>
-                  <td className="px-6 py-4" style={{ color: "rgba(250,247,240,0.7)" }}>{row.feature}</td>
-                  <td className="px-6 py-4 text-center font-semibold">
-                    <CompareCell value={row.us} highlight />
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <CompareCell value={row.docusign} />
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <CompareCell value={row.hellosign} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {GAP_FILLERS.map((item) => (
+            <div key={item.title} className="p-6 rounded-2xl"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.12)" }}>
+              <div className="text-3xl mb-4">{item.icon}</div>
+              <h3 className="font-display font-semibold text-lg mb-2" style={{ color: "var(--cream)" }}>{item.title}</h3>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(250,247,240,0.5)" }}>{item.desc}</p>
+            </div>
+          ))}
         </div>
-
-        <p className="mt-4 text-center text-xs" style={{ color: "rgba(250,247,240,0.25)" }}>
-          Pricing data based on published plans as of 2026. Plans change — always verify on their sites.
-        </p>
       </section>
 
       {/* ── How It Works ───────────────────────────────────── */}
@@ -302,8 +276,8 @@ const FEATURES = [
   },
   {
     icon: "🔒",
-    title: "Private Firebase Vault",
-    desc: "Every document is stored in your own private Firebase account. We never read your files.",
+    title: "Private Document Space",
+    desc: "Keep signed files, drafts, and audit details organized in a workspace made for sensitive documents.",
   },
   {
     icon: "📱",
@@ -314,24 +288,24 @@ const FEATURES = [
 
 const WHY_US = [
   {
-    icon: "💸",
-    headline: "70% cheaper than DocuSign",
-    body: "DocuSign charges $45/month. SignToSeal Starter is $12/mo with send-to-sign, 40+ templates, and signed PDF downloads included.",
+    icon: "🧭",
+    headline: "Clear starting points",
+    body: "Begin from a blank PDF or choose from built-in templates for common agreements, so you spend less time rebuilding the same document flow.",
   },
   {
     icon: "🚀",
-    headline: "No onboarding tax",
-    body: "Log in with Google and you're in your workspace in seconds. No onboarding questionnaire, no wizard, no trial countdown.",
+    headline: "Fast first signature",
+    body: "Log in, upload or choose a template, place fields, and get a document ready without a long setup process.",
   },
   {
     icon: "🎨",
-    headline: "Built for real workflows",
-    body: "Templates for NDAs and contractor agreements — not just a blank PDF uploader. Your most common use cases are already set up.",
+    headline: "Built for repeat work",
+    body: "Templates for NDAs and contractor agreements help turn common paperwork into a repeatable workflow instead of a fresh setup each time.",
   },
   {
     icon: "🛡️",
     headline: "Your data stays yours",
-    body: "Documents live in your own Firebase project. We have zero read access to your files. Audit it yourself — we're open source.",
+    body: "Your documents stay organized in a private workspace with clear access boundaries and downloadable signed copies.",
   },
   {
     icon: "✨",
@@ -345,14 +319,27 @@ const WHY_US = [
   },
 ];
 
-const COMPARE_ROWS = [
-  { feature: "Price",                    us: "$12/mo",      docusign: "$45/mo",      hellosign: "$30/mo" },
-  { feature: "Built-in legal templates", us: "40+",         docusign: false,         hellosign: false },
-  { feature: "Send to others for sign",  us: true,          docusign: true,          hellosign: true },
-  { feature: "Signed PDF download",      us: true,          docusign: true,          hellosign: true },
-  { feature: "No account for signers",   us: true,          docusign: true,          hellosign: true },
-  { feature: "Free trial",               us: "7 days",      docusign: "30 days",     hellosign: "30 days" },
-  { feature: "Multi-signer",             us: "Pro $24",     docusign: "$45+",       hellosign: "$30+" },
+const GAP_FILLERS = [
+  {
+    icon: "📋",
+    title: "The template gap",
+    desc: "Start with useful agreement structures instead of hunting for a file, copying old language, or rebuilding the same fields.",
+  },
+  {
+    icon: "🎯",
+    title: "The field placement gap",
+    desc: "Add signatures, dates, and text exactly where they belong, then keep the document moving without extra handoffs.",
+  },
+  {
+    icon: "📨",
+    title: "The signer access gap",
+    desc: "Send a secure signing link so recipients can complete their part without needing to create an account first.",
+  },
+  {
+    icon: "📦",
+    title: "The completion gap",
+    desc: "Download the signed PDF and keep a clear record of what was sent, who signed, and what is ready to store or share.",
+  },
 ];
 
 const STEPS = [
@@ -386,20 +373,6 @@ function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc:
       <h3 className="font-display font-semibold text-base" style={{ color: "var(--cream)" }}>{title}</h3>
       <p className="text-sm leading-relaxed" style={{ color: "rgba(250,247,240,0.5)" }}>{desc}</p>
     </div>
-  );
-}
-
-function CompareCell({ value, highlight = false }: { value: string | boolean; highlight?: boolean }) {
-  if (value === true) {
-    return <span style={{ color: highlight ? "var(--gold)" : "#4ade80" }}>✓</span>;
-  }
-  if (value === false) {
-    return <span style={{ color: "rgba(250,247,240,0.25)" }}>✗</span>;
-  }
-  return (
-    <span style={{ color: highlight ? "var(--gold)" : "rgba(250,247,240,0.5)" }}>
-      {value}
-    </span>
   );
 }
 

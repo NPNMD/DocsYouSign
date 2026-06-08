@@ -8,9 +8,17 @@ import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import { today } from "@/lib/template-utils";
 import { signFormDocument, saveFormData } from "@/lib/documents";
 import { sendSigningInvite } from "@/lib/signing";
+import {
+  DEFAULT_SEND_PRESETS,
+  recordActivity,
+  saveContact,
+  subscribeToContacts,
+  subscribeToSendPresets,
+  touchContact,
+} from "@/lib/workspace";
 import SignaturePad from "@/components/SignaturePad";
 import { riskTone, templateWarnings } from "@/lib/template-utils";
-import type { FormTemplate, TemplateFieldDef } from "@/lib/types";
+import type { FormTemplate, SavedContact, SendPreset, TemplateFieldDef } from "@/lib/types";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -42,6 +50,13 @@ function FormSignInner() {
   const [showSend, setShowSend] = useState(false);
   const [recipName, setRecipName] = useState("");
   const [recipEmail, setRecipEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [contacts, setContacts] = useState<SavedContact[]>([]);
+  const [presets, setPresets] = useState<SendPreset[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [saveRecipient, setSaveRecipient] = useState(true);
   const [sending, setSending] = useState(false);
   const [sentLink, setSentLink] = useState("");
   const [sendError, setSendError] = useState("");
@@ -49,6 +64,16 @@ function FormSignInner() {
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubContacts = subscribeToContacts(user.uid, setContacts);
+    const unsubPresets = subscribeToSendPresets(user.uid, setPresets);
+    return () => {
+      unsubContacts();
+      unsubPresets();
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user || !docId) return;
@@ -169,6 +194,8 @@ function FormSignInner() {
           documentName: template?.name ?? "Document",
           recipientName: recipName.trim(),
           recipientEmail: email,
+          subject: subject.trim() || undefined,
+          message: message.trim() || undefined,
         }),
       });
       if (!res.ok) {
@@ -177,6 +204,18 @@ function FormSignInner() {
       }
       const data = (await res.json()) as { signingUrl: string; token: string };
       await sendSigningInvite(email, data.token).catch(() => {});
+      if (selectedContactId) {
+        await touchContact(selectedContactId).catch(() => {});
+      } else if (saveRecipient) {
+        await saveContact(user.uid, { name: recipName.trim(), email }).catch(() => {});
+      }
+      await recordActivity(user.uid, {
+        documentId: docId,
+        documentName: template?.name ?? "Document",
+        contactName: recipName.trim(),
+        type: "sent",
+        label: `Sent ${template?.name ?? "Document"} to ${recipName.trim()}`,
+      }).catch(() => {});
       setSentLink(data.signingUrl);
     } catch (e) {
       console.error("Send failed:", e);
@@ -185,7 +224,34 @@ function FormSignInner() {
     } finally {
       setSending(false);
     }
-  }, [user, docId, recipName, recipEmail, values]);
+  }, [user, docId, recipName, recipEmail, values, template, subject, message, selectedContactId, saveRecipient]);
+
+  const allPresets: SendPreset[] = useMemo(() => [
+    ...presets,
+    ...DEFAULT_SEND_PRESETS.map((preset, index) => ({
+      ...preset,
+      id: `default-${index}`,
+      ownerId: user?.uid ?? "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+  ], [presets, user?.uid]);
+
+  const chooseContact = (contactId: string) => {
+    setSelectedContactId(contactId);
+    const contact = contacts.find((c) => c.id === contactId);
+    if (!contact) return;
+    setRecipName(contact.name);
+    setRecipEmail(contact.email);
+  };
+
+  const choosePreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    const preset = allPresets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setSubject(preset.subject);
+    setMessage(preset.message);
+  };
 
   if (loading || docLoading || !template) {
     return (
@@ -391,18 +457,60 @@ function FormSignInner() {
                   We&apos;ll generate a secure signing link. The recipient opens it and signs the document you filled in — no account needed.
                 </p>
                 <div className="space-y-3">
+                  {contacts.length > 0 && (
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Saved contact</label>
+                      <select value={selectedContactId} onChange={(e) => chooseContact(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                        style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }}>
+                        <option value="">Choose saved contact</option>
+                        {contacts.map((contact) => (
+                          <option key={contact.id} value={contact.id}>{contact.name} - {contact.email}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Recipient name</label>
-                    <input value={recipName} onChange={(e) => setRecipName(e.target.value)} placeholder="Full name"
+                    <input value={recipName} onChange={(e) => { setRecipName(e.target.value); setSelectedContactId(""); }} placeholder="Full name"
                       className="w-full px-4 py-3 rounded-xl text-sm outline-none"
                       style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Recipient email</label>
-                    <input type="email" value={recipEmail} onChange={(e) => setRecipEmail(e.target.value)} placeholder="them@email.com"
+                    <input type="email" value={recipEmail} onChange={(e) => { setRecipEmail(e.target.value); setSelectedContactId(""); }} placeholder="them@email.com"
                       className="w-full px-4 py-3 rounded-xl text-sm outline-none"
                       style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
                   </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Message preset</label>
+                    <select value={selectedPresetId} onChange={(e) => choosePreset(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }}>
+                      <option value="">Choose message preset</option>
+                      {allPresets.map((preset) => (
+                        <option key={preset.id} value={preset.id}>{preset.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Subject</label>
+                    <input value={subject} onChange={(e) => { setSubject(e.target.value); setSelectedPresetId(""); }} placeholder="Please review and sign"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: "var(--text-muted)" }}>Message</label>
+                    <textarea value={message} onChange={(e) => { setMessage(e.target.value); setSelectedPresetId(""); }} placeholder="Add a note for the recipient"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-y" rows={3}
+                      style={{ background: "white", border: "1.5px solid var(--border)", color: "var(--navy)" }} />
+                  </div>
+                  {!selectedContactId && (
+                    <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)} />
+                      Save this recipient to contacts
+                    </label>
+                  )}
                   {sendError && <p className="text-xs" style={{ color: "var(--danger)" }}>{sendError}</p>}
                 </div>
                 <div className="flex gap-3 mt-5">

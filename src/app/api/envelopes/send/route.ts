@@ -72,6 +72,8 @@ export async function POST(req: Request) {
       senderEmail,
       documentName,
       signingUrl,
+      subject: body.subject,
+      message: body.message,
     });
 
     await adminDb.collection("billing").doc(senderId).set(
