@@ -42,7 +42,7 @@ export default function LandingPage() {
           className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-95"
           style={{ background: "var(--gold)", color: "var(--navy)" }}
         >
-          {signing ? "Signing in…" : "Sign In Free"}
+          {signing ? "Signing in…" : "Start Free Trial"}
         </button>
       </nav>
 
@@ -53,7 +53,7 @@ export default function LandingPage() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8"
           style={{ background: "rgba(201,168,76,0.1)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.3)" }}>
           <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--gold)" }} />
-          No subscription · No bloat · Yours forever
+          From $12/mo · 40+ templates · 7-day free trial
         </div>
 
         <h1 className="font-display font-bold leading-tight mb-6 max-w-3xl"
@@ -67,7 +67,7 @@ export default function LandingPage() {
           style={{ color: "rgba(250,247,240,0.6)" }}>
           Upload PDFs, use ready-made legal templates, draw your signature, and send documents
           to others for signing — all from one clean, private workspace.
-          <strong style={{ color: "rgba(250,247,240,0.85)" }}> Free. No credit card ever.</strong>
+          <strong style={{ color: "rgba(250,247,240,0.85)" }}> Starting at $12/mo — 70% less than DocuSign.</strong>
         </p>
 
         <button
@@ -84,15 +84,15 @@ export default function LandingPage() {
           {signing ? "Connecting…" : "Get started with Google"}
         </button>
         <p className="mt-4 text-xs" style={{ color: "rgba(250,247,240,0.3)" }}>
-          Free forever — your documents stay in your private account
+          7-day free trial · No credit card required to start
         </p>
 
         {/* Mini stats row */}
         <div className="flex flex-wrap items-center justify-center gap-8 mt-16">
           {[
-            { value: "100%", label: "Free to use" },
-            { value: "0", label: "Subscriptions" },
-            { value: "∞", label: "Documents" },
+            { value: "$12", label: "Per month" },
+            { value: "40+", label: "Templates" },
+            { value: "7d", label: "Free trial" },
             { value: "🔒", label: "Private vault" },
           ].map((s) => (
             <div key={s.label} className="text-center">
@@ -110,7 +110,7 @@ export default function LandingPage() {
           One app. Every signing workflow.
         </h2>
         <p className="text-center max-w-xl mx-auto mb-14" style={{ color: "rgba(250,247,240,0.5)" }}>
-          From quick personal signatures to sending contracts to multiple parties — SignToSeal handles it all without a paywall in sight.
+          From quick personal signatures to sending contracts to clients — SignToSeal handles it all at a fraction of DocuSign&apos;s price.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -129,7 +129,7 @@ export default function LandingPage() {
             Document signing shouldn&apos;t cost a fortune.
           </h2>
           <p className="text-center max-w-2xl mx-auto mb-14" style={{ color: "rgba(250,247,240,0.5)" }}>
-            Most e-signature tools lock basic features behind expensive monthly plans. SignToSeal gives you the full workflow — for free, forever.
+            Most e-signature tools charge $30–$45/month for basic features. SignToSeal starts at $12 with 40+ built-in templates.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -154,7 +154,7 @@ export default function LandingPage() {
           SignToSeal vs the alternatives
         </h2>
         <p className="text-center max-w-xl mx-auto mb-12" style={{ color: "rgba(250,247,240,0.5)" }}>
-          Why pay $30–$45/month for features you already get for free?
+          Why pay $45/month when SignToSeal starts at $12?
         </p>
 
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(201,168,76,0.15)" }}>
@@ -204,7 +204,7 @@ export default function LandingPage() {
             Up and running in 60 seconds
           </h2>
           <p className="text-center max-w-xl mx-auto mb-14" style={{ color: "rgba(250,247,240,0.5)" }}>
-            No onboarding, no wizard, no credit card.
+            No onboarding wizard. Start your 7-day trial in 60 seconds.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -234,7 +234,7 @@ export default function LandingPage() {
             Ready to seal the deal?
           </h2>
           <p className="text-lg mb-10" style={{ color: "rgba(250,247,240,0.5)" }}>
-            Join for free. No limits, no subscriptions, no nonsense.
+            Start your free trial. Simple pricing, no surprises.
           </p>
           <button
             onClick={handleSignIn}
@@ -247,7 +247,7 @@ export default function LandingPage() {
             }}
           >
             <GoogleIcon />
-            {signing ? "Connecting…" : "Start for free — Continue with Google"}
+            {signing ? "Connecting…" : "Start free trial — Continue with Google"}
           </button>
         </div>
       </section>
@@ -266,7 +266,10 @@ export default function LandingPage() {
             © 2026 SignToSeal — Your documents, your control.
           </p>
           <div className="flex items-center gap-5 text-xs" style={{ color: "rgba(250,247,240,0.35)" }}>
-            <a href="mailto:hello@signtoseal.com" className="hover:opacity-80 transition-opacity">hello@signtoseal.com</a>
+            <a href="/pricing" className="hover:opacity-80 transition-opacity">Pricing</a>
+            <a href="/terms" className="hover:opacity-80 transition-opacity">Terms</a>
+            <a href="/privacy" className="hover:opacity-80 transition-opacity">Privacy</a>
+            <a href="mailto:hello@signtoseal.com" className="hover:opacity-80 transition-opacity">Contact</a>
           </div>
         </div>
       </footer>
@@ -312,8 +315,8 @@ const FEATURES = [
 const WHY_US = [
   {
     icon: "💸",
-    headline: "Completely free — no hidden tiers",
-    body: "DocuSign charges $45/month for multi-party signing. SignToSeal includes send-to-sign, templates, and unlimited documents at $0.",
+    headline: "70% cheaper than DocuSign",
+    body: "DocuSign charges $45/month. SignToSeal Starter is $12/mo with send-to-sign, 40+ templates, and signed PDF downloads included.",
   },
   {
     icon: "🚀",
@@ -343,13 +346,13 @@ const WHY_US = [
 ];
 
 const COMPARE_ROWS = [
-  { feature: "Price",                    us: "Free",        docusign: "$45/mo",      hellosign: "$30/mo" },
-  { feature: "Unlimited documents",      us: true,          docusign: "5/mo free",   hellosign: "3/mo free" },
-  { feature: "Send to others for sign",  us: true,          docusign: "Paid only",   hellosign: "Paid only" },
-  { feature: "Built-in legal templates", us: true,          docusign: false,         hellosign: false },
+  { feature: "Price",                    us: "$12/mo",      docusign: "$45/mo",      hellosign: "$30/mo" },
+  { feature: "Built-in legal templates", us: "40+",         docusign: false,         hellosign: false },
+  { feature: "Send to others for sign",  us: true,          docusign: true,          hellosign: true },
+  { feature: "Signed PDF download",      us: true,          docusign: true,          hellosign: true },
   { feature: "No account for signers",   us: true,          docusign: true,          hellosign: true },
-  { feature: "Data privacy",             us: "Your vault",  docusign: "Their cloud", hellosign: "Their cloud" },
-  { feature: "Credit card required",     us: false,         docusign: true,          hellosign: true },
+  { feature: "Free trial",               us: "7 days",      docusign: "30 days",     hellosign: "30 days" },
+  { feature: "Multi-signer",             us: "Pro $24",     docusign: "$45+",       hellosign: "$30+" },
 ];
 
 const STEPS = [

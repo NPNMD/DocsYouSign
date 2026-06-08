@@ -6,7 +6,8 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import { today } from "@/lib/template-utils";
-import { signFormDocument, saveFormData, createSigningRequest } from "@/lib/documents";
+import { signFormDocument, saveFormData } from "@/lib/documents";
+import { sendSigningInvite } from "@/lib/signing";
 import SignaturePad from "@/components/SignaturePad";
 import { riskTone, templateWarnings } from "@/lib/template-utils";
 import type { FormTemplate, TemplateFieldDef } from "@/lib/types";
@@ -158,13 +159,25 @@ function FormSignInner() {
     setSending(true);
     try {
       await saveFormData(docId, values).catch(() => {});
-      const req = await createSigningRequest(
-        docId,
-        { id: user.uid, email: user.email ?? "" },
-        { name: recipName.trim(), email }
-      );
-      const link = `${window.location.origin}/sign-request?token=${req.token}`;
-      setSentLink(link);
+      const res = await fetch("/api/envelopes/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: user.uid,
+          senderEmail: user.email ?? "",
+          documentId: docId,
+          documentName: template?.name ?? "Document",
+          recipientName: recipName.trim(),
+          recipientEmail: email,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "send-failed");
+      }
+      const data = (await res.json()) as { signingUrl: string; token: string };
+      await sendSigningInvite(email, data.token).catch(() => {});
+      setSentLink(data.signingUrl);
     } catch (e) {
       console.error("Send failed:", e);
       setSentLink("");

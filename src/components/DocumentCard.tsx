@@ -3,9 +3,12 @@ import type { Document } from "@/lib/types";
 
 interface Props {
   doc: Document;
+  userId?: string;
   onPrepare: (doc: Document) => void;
   onSign: (doc: Document) => void;
   onDelete: (doc: Document) => void;
+  onVoid?: (doc: Document) => void;
+  onRemind?: (doc: Document) => void;
 }
 
 const STATUS_CONFIG = {
@@ -26,7 +29,7 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
-export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props) {
+export default function DocumentCard({ doc, onPrepare, onSign, onDelete, onVoid, onRemind }: Props) {
   const status = STATUS_CONFIG[doc.status] ?? STATUS_CONFIG.draft;
   const fieldCount = doc.fields?.length ?? 0;
 
@@ -61,6 +64,11 @@ export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props
           </span>
           {doc.fileSize && (
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>{formatBytes(doc.fileSize)}</span>
+          )}
+          {doc.pendingSignerEmail && doc.status === "sent" && (
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              → {doc.pendingSignerEmail}
+            </span>
           )}
           {doc.signedAt && (
             <span className="text-xs" style={{ color: "var(--success)" }}>
@@ -120,8 +128,31 @@ export default function DocumentCard({ doc, onPrepare, onSign, onDelete }: Props
           </button>
         )}
 
+        {doc.status === "sent" && doc.envelopeId && onRemind && (
+          <button onClick={() => onRemind(doc)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: "var(--cream-dark)", color: "var(--navy)" }}>
+            Remind
+          </button>
+        )}
+        {doc.status === "sent" && doc.envelopeId && onVoid && (
+          <button onClick={() => onVoid(doc)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: "rgba(139,26,26,0.08)", color: "var(--danger)" }}>
+            Void
+          </button>
+        )}
+
+        {(doc.status === "signed" || doc.status === "completed") && doc.signedPdfUrl && (
+          <a href={doc.signedPdfUrl} target="_blank" rel="noreferrer"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: "var(--gold)", color: "var(--navy)" }}>
+            Download
+          </a>
+        )}
+
         {/* Signed → View */}
-        {doc.status === "signed" && (
+        {(doc.status === "signed" || doc.status === "completed") && !doc.signedPdfUrl && (
           <button onClick={() => onSign(doc)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80"
             style={{ background: "var(--cream-dark)", color: "var(--text-muted)" }}>

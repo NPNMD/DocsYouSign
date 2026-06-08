@@ -5,6 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { saveFields } from "@/lib/documents";
+import { sendSigningInvite } from "@/lib/signing";
 import type { Document, DocumentField, FieldType } from "@/lib/types";
 import dynamic from "next/dynamic";
 
@@ -29,6 +30,12 @@ function PreparePageInner() {
   const [placingType, setPlacingType] = useState<FieldType | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [showSend, setShowSend] = useState(false);
+  const [recipName, setRecipName] = useState("");
+  const [recipEmail, setRecipEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentLink, setSentLink] = useState("");
+  const [sendError, setSendError] = useState("");
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -82,6 +89,41 @@ function PreparePageInner() {
     }
   };
 
+  const sendForSignature = async () => {
+    if (!user || !document) return;
+    const email = recipEmail.trim().toLowerCase();
+    if (!recipName.trim()) { setSendError("Enter recipient name."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setSendError("Enter valid email."); return; }
+    if (fields.filter(f => f.type === "signature").length === 0) {
+      setSendError("Place at least one signature field first."); return;
+    }
+    setSendError("");
+    setSending(true);
+    try {
+      await saveFields(document.id, fields, pageCount);
+      const res = await fetch("/api/envelopes/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderId: user.uid,
+          senderEmail: user.email ?? "",
+          documentId: document.id,
+          documentName: document.name,
+          recipientName: recipName.trim(),
+          recipientEmail: email,
+        }),
+      });
+      if (!res.ok) throw new Error("send-failed");
+      const data = (await res.json()) as { signingUrl: string; token: string };
+      await sendSigningInvite(email, data.token).catch(() => {});
+      setSentLink(data.signingUrl);
+    } catch {
+      setSendError("Could not send. Try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (loading || !user || docLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--cream)" }}>
@@ -120,6 +162,11 @@ function PreparePageInner() {
             <span>·</span><span>{initCount} initial{initCount !== 1 ? "s" : ""}</span>
             <span>·</span><span>{dateCount} date{dateCount !== 1 ? "s" : ""}</span>
           </div>
+          <button onClick={() => { setShowSend(true); setSentLink(""); setSendError(""); }}
+            className="px-4 py-1.5 rounded-lg text-sm font-semibold"
+            style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.4)" }}>
+            Send for Signature
+          </button>
           <button onClick={handleSave} disabled={saving}
             className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
             style={{ background: "var(--gold)", color: "var(--navy)" }}>
@@ -206,6 +253,41 @@ function PreparePageInner() {
           />
         </main>
       </div>
+
+      {showSend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full max-w-md p-6 rounded-2xl" style={{ background: "white" }}>
+            <h2 className="font-display text-lg font-bold mb-4" style={{ color: "var(--navy)" }}>Send for Signature</h2>
+            {sentLink ? (
+              <div>
+                <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>Invite sent! Fallback link:</p>
+                <input readOnly value={sentLink} className="w-full text-xs p-2 rounded border mb-3" />
+                <button onClick={() => { setShowSend(false); router.push("/dashboard"); }}
+                  className="w-full py-2 rounded-lg font-semibold" style={{ background: "var(--navy)", color: "var(--gold)" }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <input value={recipName} onChange={(e) => setRecipName(e.target.value)} placeholder="Recipient name"
+                  className="w-full px-4 py-3 rounded-xl text-sm mb-3 border" />
+                <input value={recipEmail} onChange={(e) => setRecipEmail(e.target.value)} placeholder="Recipient email"
+                  className="w-full px-4 py-3 rounded-xl text-sm mb-3 border" />
+                {sendError && <p className="text-xs mb-2" style={{ color: "var(--danger)" }}>{sendError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => setShowSend(false)} className="flex-1 py-2 rounded-lg border">Cancel</button>
+                  <button onClick={sendForSignature} disabled={sending}
+                    className="flex-1 py-2 rounded-lg font-semibold disabled:opacity-50"
+                    style={{ background: "var(--gold)", color: "var(--navy)" }}>
+                    {sending ? "Sending…" : "Send"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

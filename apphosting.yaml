@@ -1,2 +1,44 @@
 runConfig:
   minInstances: 0
+
+env:
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://docsyousign--docsyousign.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: pk_test_51Qr8ddR5Dbro6T4sefRKKNxvjoLdeeTFmPhmSQyp4TtOzDWbHWlsge3p6DfKWzfrRam5NHAgZWN1BcCNbdTgF5dg0013EjkV8g
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: STRIPE_PRICE_STARTER
+    value: price_1Tg8trR5Dbro6T4sMxfvOvLg
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_PRICE_PRO
+    value: price_1Tg8trR5Dbro6T4sd7nxat54
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_PRICE_TEAM
+    value: price_1Tg8tsR5Dbro6T4s5vR4Wc5p
+    availability:
+      - RUNTIME
+
+  - variable: RESEND_FROM_EMAIL
+    value: SignToSeal <onboarding@resend.dev>
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY

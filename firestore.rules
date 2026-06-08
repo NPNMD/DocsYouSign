@@ -7,7 +7,6 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == resource.data.ownerId;
     }
 
-    // The signed-in recipient authorized to sign this document.
     function isPendingSigner() {
       return request.auth != null
         && resource.data.pendingSignerEmail != null
@@ -18,24 +17,15 @@ service cloud.firestore {
     match /documents/{documentId} {
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.ownerId;
-
-      // Only the owner may list documents (used by the dashboard query).
-      // A recipient can get a single doc by ID (token-based sign flow uses Admin SDK,
-      // but splitting here prevents recipients from listing the owner's library).
       allow get: if isOwner() || isPendingSigner();
       allow list: if isOwner();
-
-      // Owner can update freely. A recipient may update (to sign) but cannot
-      // change ownership or who the doc was sent to.
       allow update: if isOwner()
         || (isPendingSigner()
             && request.resource.data.ownerId == resource.data.ownerId
             && request.resource.data.pendingSignerEmail == resource.data.pendingSignerEmail);
-
       allow delete: if isOwner();
     }
 
-    // Signing requests — document ID is the secret token.
     match /signingRequests/{token} {
       function isSender() {
         return request.auth != null && request.auth.uid == resource.data.senderId;
@@ -45,18 +35,49 @@ service cloud.firestore {
           && request.auth.token.email_verified == true
           && request.auth.token.email.lower() == resource.data.recipientEmail;
       }
-
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.senderId;
-      // Sender can list their requests; both sender and recipient can get by ID.
       allow get: if isSender() || isRecipient();
       allow list: if isSender();
-      // Recipient may update status/audit when signing; sender may manage too.
       allow update: if isSender() || isRecipient();
       allow delete: if isSender();
     }
 
-    // Legacy signature records
+    match /envelopes/{envelopeId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.senderId;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.senderId;
+    }
+
+    match /customTemplates/{templateId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.ownerId;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.ownerId;
+    }
+
+    match /billing/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /teams/{teamId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.memberIds;
+      allow write: if request.auth != null
+        && request.auth.uid == resource.data.ownerId;
+    }
+
+    match /webhookSubscriptions/{subId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+    }
+
+    match /apiKeys/{keyId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+    }
+
     match /signatures/{signatureId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;

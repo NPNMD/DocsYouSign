@@ -4,24 +4,36 @@ import { useSearchParams } from "next/navigation";
 import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import SignaturePad from "@/components/SignaturePad";
 import { riskTone, templateWarnings, today } from "@/lib/template-utils";
+import {
+  sendSigningInvite,
+  completeEmailSignIn,
+  isEmailSignInLink,
+  rememberedEmail,
+} from "@/lib/signing";
+import { useAuth } from "@/context/AuthContext";
 import type { FormTemplate } from "@/lib/types";
 
-type Phase = "loading" | "review" | "sign" | "done" | "error";
+type Phase = "loading" | "verify" | "review" | "sign" | "done" | "error";
 
 interface RequestInfo {
   senderEmail: string;
   recipientName: string;
+  recipientEmail: string;
   status: string;
 }
 interface DocInfo {
   id: string;
   name: string;
+  kind?: string;
   templateId: string | null;
   formData: Record<string, string>;
+  fields?: Array<{ id: string; type: string; page: number; x: number; y: number; width: number; height: number; value?: string }>;
+  storageUrl?: string | null;
   status: string;
   signatureDataUrl?: string | null;
   signerName?: string | null;
   signedAt?: string | null;
+  signedPdfUrl?: string | null;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -52,9 +64,15 @@ function Card({ children }: { children: React.ReactNode }) {
 function SignRequestInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
+  const emailParam = searchParams.get("e") ?? "";
+  const { user } = useAuth();
 
   const [phase, setPhase] = useState<Phase>(token ? "loading" : "error");
   const [errorMsg, setErrorMsg] = useState(token ? "" : "This signing link is missing its token.");
+  const [verified, setVerified] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState(emailParam || rememberedEmail());
+  const [verifySending, setVerifySending] = useState(false);
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
 
   const [request, setRequest] = useState<RequestInfo | null>(null);
   const [docData, setDocData] = useState<DocInfo | null>(null);
@@ -92,18 +110,52 @@ function SignRequestInner() {
           setSavedSignerName(data.document.signerName ?? data.request.recipientName ?? "");
           setSavedSignedAt(data.document.signedAt ?? null);
         }
-        if (data.request.status === "signed" || data.document.status === "signed") {
+        if (data.request.status === "signed" || data.document.status === "signed" || data.document.status === "completed") {
+          setSignedPdfUrl(data.document.signedPdfUrl ?? null);
           setPhase("done");
           return;
         }
-        setPhase("review");
+        const recipientEmail = data.request.recipientEmail?.toLowerCase() ?? emailParam.toLowerCase();
+        setVerifyEmail(recipientEmail || verifyEmail);
+        const authMatch = user?.email?.toLowerCase() === recipientEmail;
+        if (authMatch) {
+          setVerified(true);
+          setPhase("review");
+        } else {
+          setPhase("verify");
+        }
       } catch (e) {
         console.error(e);
         setErrorMsg("Something went wrong loading this document. Please try the link again.");
         setPhase("error");
       }
     })();
-  }, [token]);
+  }, [token, emailParam, user, verifyEmail]);
+
+  useEffect(() => {
+    if (!token || typeof window === "undefined") return;
+    if (isEmailSignInLink(window.location.href)) {
+      const email = verifyEmail || rememberedEmail();
+      if (email) {
+        completeEmailSignIn(email, window.location.href)
+          .then(() => { setVerified(true); setPhase("review"); })
+          .catch(() => setErrorMsg("Email verification failed. Try again."));
+      }
+    }
+  }, [token, verifyEmail]);
+
+  const handleSendVerify = useCallback(async () => {
+    if (!verifyEmail.trim()) return;
+    setVerifySending(true);
+    try {
+      await sendSigningInvite(verifyEmail.trim(), token);
+      setErrorMsg("");
+    } catch {
+      setErrorMsg("Could not send verification email. Try again.");
+    } finally {
+      setVerifySending(false);
+    }
+  }, [verifyEmail, token]);
 
   const template = useMemo(
     () => (docData?.templateId ? getFormTemplate(docData.templateId) : undefined),
@@ -136,7 +188,13 @@ function SignRequestInner() {
       const res = await fetch(`/api/sign-request/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ printName: printName.trim(), signatureDataUrl: signature, consent }),
+        body: JSON.stringify({
+          printName: printName.trim(),
+          signatureDataUrl: signature,
+          consent,
+          recipientEmail: verifyEmail || request?.recipientEmail,
+          verified,
+        }),
       });
       if (res.status === 409) {
         setSavedSignature(signature);
@@ -150,6 +208,10 @@ function SignRequestInner() {
         setSaving(false);
         return;
       }
+      const result = await res.json().catch(() => ({}));
+      if ((result as { signedPdfUrl?: string }).signedPdfUrl) {
+        setSignedPdfUrl((result as { signedPdfUrl: string }).signedPdfUrl);
+      }
       setSavedSignature(signature);
       setSavedSignerName(printName.trim());
       setSavedSignedAt(new Date().toISOString());
@@ -159,7 +221,7 @@ function SignRequestInner() {
       setErrorMsg("We couldn't record your signature. Please try again.");
       setSaving(false);
     }
-  }, [docData, token, signature, consent, printName]);
+  }, [docData, token, signature, consent, printName, verifyEmail, request, verified]);
 
   // ── render ──────────────────────────────────────────────────────
   if (phase === "loading") {
@@ -198,9 +260,40 @@ function SignRequestInner() {
               <div className="tpl-doc-body" dangerouslySetInnerHTML={{ __html: signedBodyHtml }} />
             </div>
           )}
-          <button onClick={() => window.print()} className="px-6 py-3 rounded-xl font-semibold no-print"
-            style={{ background: "var(--navy)", color: "var(--gold)" }}>🖨️ Print / Save PDF</button>
+          <div className="flex gap-3 justify-center no-print">
+            {signedPdfUrl && (
+              <a href={signedPdfUrl} target="_blank" rel="noreferrer"
+                className="px-6 py-3 rounded-xl font-semibold"
+                style={{ background: "var(--gold)", color: "var(--navy)" }}>
+                📥 Download Signed PDF
+              </a>
+            )}
+            <button onClick={() => window.print()} className="px-6 py-3 rounded-xl font-semibold"
+              style={{ background: "var(--navy)", color: "var(--gold)" }}>🖨️ Print</button>
+          </div>
         </div>
+      </Shell>
+    );
+  }
+
+  if (phase === "verify") {
+    return (
+      <Shell>
+        <Card>
+          <h1 className="font-display text-xl font-bold mb-2" style={{ color: "var(--navy)" }}>Verify your email</h1>
+          <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+            For security, confirm you control the email this document was sent to.
+          </p>
+          <input value={verifyEmail} onChange={(e) => setVerifyEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm mb-4 outline-none"
+            style={{ border: "1.5px solid var(--border)" }} placeholder="your@email.com" />
+          {errorMsg && <p className="text-xs mb-3" style={{ color: "var(--danger)" }}>{errorMsg}</p>}
+          <button onClick={handleSendVerify} disabled={verifySending || !verifyEmail.trim()}
+            className="w-full py-3 rounded-xl font-semibold disabled:opacity-50"
+            style={{ background: "var(--navy)", color: "var(--gold)" }}>
+            {verifySending ? "Sending…" : "Send verification link"}
+          </button>
+        </Card>
       </Shell>
     );
   }

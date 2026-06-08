@@ -37,9 +37,126 @@ export interface Document {
   templateSnapshotHtml?: string; // rendered body preserved at execution time
   templateSnapshotHash?: string; // SHA-256 of rendered body when available
   formData?: Record<string, string>; // answers for form templates
+  bodyOverride?: string;        // user-edited document HTML (overrides template render)
+  customTemplateId?: string;    // source custom template, if created from one
   // Send-to-sign
   pendingSignerEmail?: string;  // recipient email (lowercased) authorized to sign
   signingRequestId?: string;    // active signing request
+  envelopeId?: string;          // envelope this document belongs to
+  // Final artifacts
+  signedPdfPath?: string;
+  signedPdfUrl?: string;
+  certificatePath?: string;
+  completedAt?: Date;
+}
+
+// ── Envelope model ────────────────────────────────────────────────
+export type EnvelopeStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "partially_signed"
+  | "completed"
+  | "declined"
+  | "voided"
+  | "expired";
+
+export type SignerStatus =
+  | "pending"
+  | "viewed"
+  | "verified"
+  | "signed"
+  | "declined"
+  | "reassigned";
+
+export interface EnvelopeSigner {
+  id: string;
+  email: string;
+  name: string;
+  order: number;
+  status: SignerStatus;
+  tokenHash: string;
+  signingRequestId?: string;
+  viewedAt?: Date;
+  signedAt?: Date;
+}
+
+export interface Envelope {
+  id: string;
+  senderId: string;
+  senderEmail: string;
+  documentId: string;
+  documentName: string;
+  status: EnvelopeStatus;
+  subject?: string;
+  message?: string;
+  signers: EnvelopeSigner[];
+  audit: SigningAuditEntry[];
+  createdAt: Date;
+  sentAt?: Date;
+  expiresAt?: Date;
+  completedAt?: Date;
+}
+
+// ── Billing ───────────────────────────────────────────────────────
+export type BillingPlan = "trial" | "starter" | "pro" | "team";
+
+export interface UserBilling {
+  userId: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  plan: BillingPlan;
+  trialEndsAt?: Date;
+  envelopesUsed: number;
+  periodStart: Date;
+  periodEnd?: Date;
+}
+
+// ── Team workspace ────────────────────────────────────────────────
+export type TeamRole = "owner" | "admin" | "member";
+
+export interface TeamMember {
+  userId: string;
+  email: string;
+  role: TeamRole;
+  joinedAt: Date;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: TeamMember[];
+  createdAt: Date;
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────
+export type WebhookEvent =
+  | "envelope.sent"
+  | "envelope.viewed"
+  | "envelope.completed"
+  | "envelope.declined"
+  | "envelope.voided";
+
+export interface WebhookSubscription {
+  id: string;
+  userId: string;
+  url: string;
+  events: WebhookEvent[];
+  secret: string;
+  createdAt: Date;
+}
+
+// ── User-saved custom templates ───────────────────────────────────
+export interface CustomTemplate {
+  id: string;
+  ownerId: string;
+  name: string;
+  category: TemplateCategory;
+  baseTemplateId?: string;      // stock template it was derived from
+  bodyHtml: string;             // the saved (edited) agreement body
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // ── Template catalog ──────────────────────────────────────────────
@@ -104,10 +221,11 @@ export type Template = FormTemplate | PdfTemplate;
 
 // ── Send-to-sign foundation ───────────────────────────────────────
 export interface SigningAuditEntry {
-  event: "sent" | "viewed" | "verified" | "signed";
+  event: "sent" | "viewed" | "verified" | "signed" | "consent" | "voided" | "declined" | "reminded";
   at: Date;
   ip?: string;
   userAgent?: string;
+  email?: string;
 }
 
 export interface SigningRequest {
@@ -117,11 +235,14 @@ export interface SigningRequest {
   senderEmail: string;
   recipientName: string;
   recipientEmail: string;
-  token: string;               // unique link token → routes to the document
+  token: string;               // raw token (returned once; also used as doc id for lookup)
+  tokenHash?: string;
+  envelopeId?: string;
   status: "sent" | "viewed" | "signed" | "voided";
   audit: SigningAuditEntry[];
   createdAt: Date;
   sentAt?: Date;
   viewedAt?: Date;
   signedAt?: Date;
+  expiresAt?: Date;
 }

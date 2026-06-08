@@ -1,5 +1,6 @@
 import { initializeApp, getApps, type App } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 const PROJECT_ID = "docsyousign";
 
@@ -15,4 +16,6 @@ function getAdminApp(): App {
   return initializeApp({ projectId: PROJECT_ID });
 }
 
-export const adminDb = getFirestore(getAdminApp());
+const adminApp = getAdminApp();
+export const adminDb = getFirestore(adminApp);
+export const adminStorage = getStorage(adminApp);

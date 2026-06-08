@@ -4,7 +4,8 @@ import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "SignToSeal — Sign, Send & Seal Your Documents",
-  description: "Upload PDFs, fill ready-made templates, send documents for signature, and seal every agreement — all in one private, secure place. No subscription required.",
+  description: "Upload PDFs, fill 40+ ready-made templates, send documents for signature, and download sealed PDFs. Starting at $12/mo with a 7-day free trial.",
+  manifest: "/manifest.json",
   keywords: ["e-signature", "document signing", "NDA", "PDF sign", "send for signature", "electronic signature", "free document signing"],
   openGraph: {
     title: "SignToSeal — Sign, Send & Seal Your Documents",

@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "./firebase";
-import type { Document, DocumentField, SigningRequest } from "./types";
+import type { Document, DocumentField, SigningRequest, CustomTemplate } from "./types";
 import type { Template } from "./types";
 
 function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Document {
@@ -43,8 +43,15 @@ function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Do
     templateSnapshotHtml: data.templateSnapshotHtml as string | undefined,
     templateSnapshotHash: data.templateSnapshotHash as string | undefined,
     formData: (data.formData as Record<string, string> | undefined) ?? undefined,
+    bodyOverride: data.bodyOverride as string | undefined,
+    customTemplateId: data.customTemplateId as string | undefined,
     pendingSignerEmail: data.pendingSignerEmail as string | undefined,
     signingRequestId: data.signingRequestId as string | undefined,
+    envelopeId: data.envelopeId as string | undefined,
+    signedPdfPath: data.signedPdfPath as string | undefined,
+    signedPdfUrl: data.signedPdfUrl as string | undefined,
+    certificatePath: data.certificatePath as string | undefined,
+    completedAt: data.completedAt ? (data.completedAt as Timestamp).toDate() : undefined,
   };
 }
 
@@ -359,4 +366,106 @@ export async function getSigningRequestByToken(token: string): Promise<SigningRe
     viewedAt: data.viewedAt ? (data.viewedAt as Timestamp).toDate() : undefined,
     signedAt: data.signedAt ? (data.signedAt as Timestamp).toDate() : undefined,
   };
+}
+
+// ── Editable document terms ───────────────────────────────────────
+
+/** Save (or clear) the user-edited document body for a specific document. */
+export async function saveBodyOverride(documentId: string, bodyHtml: string | null): Promise<void> {
+  await updateDoc(doc(db, "documents", documentId), {
+    bodyOverride: bodyHtml ?? "",
+    updatedAt: Timestamp.fromDate(new Date()),
+  });
+}
+
+// ── User-saved custom templates ───────────────────────────────────
+
+function customTemplateFromSnap(d: { id: string; data: () => Record<string, unknown> }): CustomTemplate {
+  const data = d.data();
+  return {
+    id: d.id,
+    ownerId: data.ownerId as string,
+    name: data.name as string,
+    category: (data.category as CustomTemplate["category"]) ?? "Business",
+    baseTemplateId: data.baseTemplateId as string | undefined,
+    bodyHtml: (data.bodyHtml as string) ?? "",
+    createdAt: (data.createdAt as Timestamp)?.toDate() ?? new Date(),
+    updatedAt: (data.updatedAt as Timestamp)?.toDate() ?? new Date(),
+  };
+}
+
+export async function createCustomTemplate(
+  userId: string,
+  input: { name: string; category: CustomTemplate["category"]; bodyHtml: string; baseTemplateId?: string }
+): Promise<CustomTemplate> {
+  const now = Timestamp.fromDate(new Date());
+  const data = {
+    ownerId: userId,
+    name: input.name,
+    category: input.category,
+    baseTemplateId: input.baseTemplateId ?? null,
+    bodyHtml: input.bodyHtml,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const ref = await addDoc(collection(db, "customTemplates"), data);
+  return {
+    id: ref.id,
+    ownerId: userId,
+    name: input.name,
+    category: input.category,
+    baseTemplateId: input.baseTemplateId,
+    bodyHtml: input.bodyHtml,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+export function subscribeToUserTemplates(
+  userId: string,
+  callback: (templates: CustomTemplate[]) => void
+) {
+  const q = query(
+    collection(db, "customTemplates"),
+    where("ownerId", "==", userId),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => customTemplateFromSnap({ id: d.id, data: d.data.bind(d) })));
+  });
+}
+
+export async function getCustomTemplate(id: string): Promise<CustomTemplate | null> {
+  const snap = await getDoc(doc(db, "customTemplates", id));
+  if (!snap.exists()) return null;
+  return customTemplateFromSnap({ id: snap.id, data: snap.data.bind(snap) });
+}
+
+export async function deleteCustomTemplate(id: string): Promise<void> {
+  await deleteDoc(doc(db, "customTemplates", id));
+}
+
+/** Create a document from a user's custom template (preloads the saved body). */
+export async function createDocumentFromCustomTemplate(
+  template: CustomTemplate,
+  userId: string,
+  userEmail: string
+): Promise<Document> {
+  const now = Timestamp.fromDate(new Date());
+  const docData = {
+    name: template.name,
+    ownerId: userId,
+    ownerEmail: userEmail,
+    status: "draft" as const,
+    fields: [],
+    kind: "form" as const,
+    templateId: "custom",
+    customTemplateId: template.id,
+    formData: {},
+    bodyOverride: template.bodyHtml,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const ref = await addDoc(collection(db, "documents"), docData);
+  return { ...docData, id: ref.id, createdAt: new Date(), updatedAt: new Date() };
 }

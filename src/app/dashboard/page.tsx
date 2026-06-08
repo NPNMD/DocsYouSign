@@ -70,6 +70,25 @@ export default function DashboardPage() {
     router.push(`/sign?id=${doc.id}`);
   }, [router]);
 
+  const handleVoid = useCallback(async (doc: Document) => {
+    if (!user || !doc.envelopeId || !confirm("Void this signing request?")) return;
+    await fetch(`/api/envelopes/${doc.envelopeId}/void`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senderId: user.uid }),
+    });
+  }, [user]);
+
+  const handleRemind = useCallback(async (doc: Document) => {
+    if (!user || !doc.envelopeId) return;
+    await fetch(`/api/envelopes/${doc.envelopeId}/remind`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senderId: user.uid }),
+    });
+    alert("Reminder sent.");
+  }, [user]);
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--cream)" }}>
@@ -101,6 +120,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button onClick={() => router.push("/pricing")}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
+            Pricing
+          </button>
           <button onClick={() => router.push("/templates")}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
             style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
@@ -217,7 +241,7 @@ export default function DashboardPage() {
                   </h2>
                   <div className="space-y-3">
                     {active.map((doc) => (
-                      <DocumentCard key={doc.id} doc={doc} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} />
+                      <DocumentCard key={doc.id} doc={doc} userId={user.uid} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} onVoid={handleVoid} onRemind={handleRemind} />
                     ))}
                   </div>
                 </div>
@@ -234,7 +258,7 @@ export default function DashboardPage() {
                   </h2>
                   <div className="space-y-3">
                     {outForSig.map((doc) => (
-                      <DocumentCard key={doc.id} doc={doc} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} />
+                      <DocumentCard key={doc.id} doc={doc} userId={user.uid} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} onVoid={handleVoid} onRemind={handleRemind} />
                     ))}
                   </div>
                 </div>
@@ -247,7 +271,7 @@ export default function DashboardPage() {
                   </h2>
                   <div className="space-y-3">
                     {signed.map((doc) => (
-                      <DocumentCard key={doc.id} doc={doc} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} />
+                      <DocumentCard key={doc.id} doc={doc} userId={user.uid} onPrepare={handlePrepare} onSign={handleSign} onDelete={handleDelete} onVoid={handleVoid} onRemind={handleRemind} />
                     ))}
                   </div>
                 </div>

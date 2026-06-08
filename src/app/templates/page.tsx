@@ -67,11 +67,18 @@ export default function TemplatesPage() {
             SignToSeal
           </span>
         </button>
-        <button onClick={() => router.push("/dashboard")}
-          className="text-sm font-medium px-4 py-2 rounded-lg transition-all"
-          style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
-          ← Dashboard
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => router.push("/templates/custom")}
+            className="text-sm font-medium px-4 py-2 rounded-lg"
+            style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
+            My Templates
+          </button>
+          <button onClick={() => router.push("/dashboard")}
+            className="text-sm font-medium px-4 py-2 rounded-lg transition-all"
+            style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
+            ← Dashboard
+          </button>
+        </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
