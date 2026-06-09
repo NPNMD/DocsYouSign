@@ -1,21 +1,27 @@
-const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+import { checkRateLimitDistributed } from "./rate-limit-firestore";
 
-const WINDOW_MS = 60_000;
+export { hashApiKey } from "./api-key-hash";
 const MAX_REQUESTS = 30;
 
-/** Simple in-memory rate limiter keyed by IP + route. */
-export function checkRateLimit(key: string): { allowed: boolean; retryAfterMs?: number } {
-  const now = Date.now();
-  const bucket = rateBuckets.get(key);
-  if (!bucket || now > bucket.resetAt) {
-    rateBuckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true };
+/** Distributed Firestore-backed rate limiter for production API routes. */
+export async function checkRateLimit(
+  key: string,
+  max: number = MAX_REQUESTS
+): Promise<{ allowed: boolean; retryAfterMs?: number }> {
+  return checkRateLimitDistributed(key, max, WINDOW_MS);
+}
+
+
+const WINDOW_MS = 60_000;
+const MAX_SIGNATURE_DATA_URL_BYTES = 1_500_000; // ~1.5MB encoded PNG ceiling
+
+/** Validate a signature/initials data URL: must be a PNG/JPEG image and within size bounds. */
+export function isValidSignatureDataUrl(value: string): boolean {
+  if (!value.startsWith("data:image/png") && !value.startsWith("data:image/jpeg")) {
+    return false;
   }
-  if (bucket.count >= MAX_REQUESTS) {
-    return { allowed: false, retryAfterMs: bucket.resetAt - now };
-  }
-  bucket.count += 1;
-  return { allowed: true };
+  if (value.length > MAX_SIGNATURE_DATA_URL_BYTES) return false;
+  return true;
 }
 
 /** Normalize email for comparison. */

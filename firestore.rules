@@ -87,7 +87,11 @@ service cloud.firestore {
     }
 
     match /billing/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Users may read their own billing record. All writes (plan changes,
+      // quota increments, Stripe sync) happen server-side via the Admin SDK,
+      // which bypasses these rules, so clients are never allowed to write.
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
 
     match /teams/{teamId} {
@@ -103,13 +107,22 @@ service cloud.firestore {
     }
 
     match /apiKeys/{keyId} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null
         && request.auth.uid == resource.data.userId;
+      allow create, update, delete: if false;
     }
 
     match /signatures/{signatureId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    match /rateLimits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /webhookOutbox/{jobId} {
+      allow read, write: if false;
     }
   }
 }

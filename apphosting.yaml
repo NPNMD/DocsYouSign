@@ -2,37 +2,30 @@ runConfig:
   minInstances: 0
 
 env:
+  # Production app URL — update when custom domain is attached in Firebase Console.
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://docsyousign--docsyousign.us-central1.hosted.app
+    value: https://signtoseal.com
     availability:
       - BUILD
       - RUNTIME
 
+  # Live Stripe publishable key — set in Cloud Secret Manager (never commit pk_live_*).
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    value: pk_test_51Qr8ddR5Dbro6T4sefRKKNxvjoLdeeTFmPhmSQyp4TtOzDWbHWlsge3p6DfKWzfrRam5NHAgZWN1BcCNbdTgF5dg0013EjkV8g
-    availability:
-      - BUILD
-      - RUNTIME
+    secret: STRIPE_PUBLISHABLE_KEY
 
+  # Live Stripe price IDs — create in Stripe Dashboard (live mode) and set here or via secrets.
   - variable: STRIPE_PRICE_STARTER
-    value: price_1Tg8trR5Dbro6T4sMxfvOvLg
-    availability:
-      - RUNTIME
+    secret: STRIPE_PRICE_STARTER
 
   - variable: STRIPE_PRICE_PRO
-    value: price_1Tg8trR5Dbro6T4sd7nxat54
-    availability:
-      - RUNTIME
+    secret: STRIPE_PRICE_PRO
 
   - variable: STRIPE_PRICE_TEAM
-    value: price_1Tg8tsR5Dbro6T4s5vR4Wc5p
-    availability:
-      - RUNTIME
+    secret: STRIPE_PRICE_TEAM
 
+  # Verified Resend domain sender — e.g. SignToSeal <signing@signtoseal.com>
   - variable: RESEND_FROM_EMAIL
-    value: SignToSeal <onboarding@resend.dev>
-    availability:
-      - RUNTIME
+    secret: RESEND_FROM_EMAIL
 
   - variable: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY
@@ -42,3 +35,11 @@ env:
 
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
+
+  # Optional: Sentry DSN for production error monitoring.
+  # Re-enable by creating the SENTRY_DSN secret then uncommenting:
+  #   firebase apphosting:secrets:set SENTRY_DSN --project docsyousign --force --data-file -
+  # - variable: NEXT_PUBLIC_SENTRY_DSN
+  #   secret: SENTRY_DSN
+  # - variable: SENTRY_DSN
+  #   secret: SENTRY_DSN

@@ -8,12 +8,20 @@ interface Props {
   compact?: boolean;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 function isPdf(file: File): boolean {
   return (
     file.type === "application/pdf" ||
     file.type === "application/x-pdf" ||
     file.name.toLowerCase().endsWith(".pdf")
   );
+}
+
+function validateFiles(files: File[]): string | null {
+  if (files.some((file) => !isPdf(file))) return "Only PDF files are supported.";
+  if (files.some((file) => file.size > MAX_FILE_SIZE)) return "Each file must be 10MB or smaller.";
+  return null;
 }
 
 export default function UploadZone({ onUpload, uploading, uploadError, compact = false }: Props) {
@@ -26,8 +34,9 @@ export default function UploadZone({ onUpload, uploading, uploadError, compact =
     setTypeError(null);
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
-    if (files.some((file) => !isPdf(file))) {
-      setTypeError("Only PDF files are supported.");
+    const err = validateFiles(files);
+    if (err) {
+      setTypeError(err);
       return;
     }
     onUpload(files);
@@ -36,8 +45,9 @@ export default function UploadZone({ onUpload, uploading, uploadError, compact =
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setTypeError(null);
     const files = Array.from(e.target.files ?? []);
-    if (files.some((file) => !isPdf(file))) {
-      setTypeError("Only PDF files are supported.");
+    const err = validateFiles(files);
+    if (err) {
+      setTypeError(err);
       e.target.value = "";
       return;
     }

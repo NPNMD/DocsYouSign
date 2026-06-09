@@ -23,12 +23,13 @@ import {
 import type { Document, ProjectFolder, SavedContact, SendPreset, WorkspaceActivity } from "@/lib/types";
 import DocumentCard from "@/components/DocumentCard";
 import UploadZone from "@/components/UploadZone";
+import BillingBanner from "@/components/BillingBanner";
 
 type StatusFilter = "all" | Document["status"];
 type SortOption = "newest" | "oldest" | "updated" | "name";
 
 export default function DashboardPage() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, authedFetch } = useAuth();
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [projects, setProjects] = useState<ProjectFolder[]>([]);
@@ -156,19 +157,17 @@ export default function DashboardPage() {
 
   const handleVoid = useCallback(async (doc: Document) => {
     if (!user || !doc.envelopeId || !confirm("Void this signing request?")) return;
-    await fetch(`/api/envelopes/${doc.envelopeId}/void`, {
+    await authedFetch(`/api/envelopes/${doc.envelopeId}/void`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderId: user.uid }),
     });
-  }, [user]);
+  }, [user, authedFetch]);
 
   const handleRemind = useCallback(async (doc: Document) => {
     if (!user || !doc.envelopeId) return;
-    await fetch(`/api/envelopes/${doc.envelopeId}/remind`, {
+    await authedFetch(`/api/envelopes/${doc.envelopeId}/remind`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderId: user.uid }),
     });
     await recordActivity(user.uid, {
       documentId: doc.id,
@@ -180,7 +179,7 @@ export default function DashboardPage() {
       label: `Sent reminder for ${doc.name}`,
     }).catch(() => {});
     alert("Reminder sent.");
-  }, [user]);
+  }, [user, authedFetch]);
 
   const handleCreateProject = useCallback(async () => {
     if (!user || !newProjectName.trim()) return;
@@ -242,9 +241,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--cream)" }}>
-      <header className="sticky top-0 z-40 px-6 py-4 flex items-center justify-between"
+      <header className="sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3"
         style={{ background: "var(--navy)", borderBottom: "1px solid rgba(201,168,76,0.2)" }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gold)" }}>
             <PenIcon />
           </div>
@@ -252,42 +251,43 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/pricing")} className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+          <button onClick={() => router.push("/pricing")} className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
             Pricing
           </button>
-          <button onClick={() => router.push("/templates")} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+          <button onClick={() => router.push("/templates")} className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
             style={{ color: "var(--gold)", border: "1px solid rgba(201,168,76,0.35)" }}>
             Templates
           </button>
           <span className="text-sm hidden sm:block" style={{ color: "rgba(250,247,240,0.7)" }}>
             {user.displayName ?? user.email}
           </span>
-          <button onClick={logout} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80"
+          <button onClick={logout} className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80"
             style={{ background: "rgba(255,255,255,0.08)", color: "rgba(250,247,240,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
             Sign out
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+        <BillingBanner />
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-6 items-start">
-          <aside className="space-y-4">
+          <aside className="space-y-4 order-2 lg:order-1">
             <Panel title="Projects">
-              <button onClick={() => setProjectFilter("all")} className="w-full text-left px-3 py-2 rounded-lg text-sm"
-                style={projectFilter === "all" ? selectedStyle : quietStyle}>
-                All documents ({documents.length})
-              </button>
-              <button onClick={() => setProjectFilter("unfiled")} className="w-full text-left px-3 py-2 rounded-lg text-sm"
-                style={projectFilter === "unfiled" ? selectedStyle : quietStyle}>
-                Unfiled ({documents.filter((d) => !d.projectId).length})
-              </button>
-              <div className="space-y-1 mt-2">
+              <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1">
+                <button onClick={() => setProjectFilter("all")} className="flex-shrink-0 lg:w-full text-left px-3 py-2 rounded-lg text-sm"
+                  style={projectFilter === "all" ? selectedStyle : quietStyle}>
+                  All documents ({documents.length})
+                </button>
+                <button onClick={() => setProjectFilter("unfiled")} className="flex-shrink-0 lg:w-full text-left px-3 py-2 rounded-lg text-sm"
+                  style={projectFilter === "unfiled" ? selectedStyle : quietStyle}>
+                  Unfiled ({documents.filter((d) => !d.projectId).length})
+                </button>
                 {projects.map((project) => (
                   <button key={project.id} onClick={() => { setProjectFilter(project.id); setSelectedProjectId(project.id); }}
-                    className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between"
+                    className="flex-shrink-0 lg:w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between gap-3"
                     style={projectFilter === project.id ? selectedStyle : quietStyle}>
-                    <span className="truncate">{project.name}</span>
+                    <span className="truncate max-w-36 lg:max-w-none">{project.name}</span>
                     <span className="text-xs">{documents.filter((d) => d.projectId === project.id).length}</span>
                   </button>
                 ))}
@@ -321,7 +321,7 @@ export default function DashboardPage() {
             </Panel>
           </aside>
 
-          <section className="space-y-6">
+          <section className="space-y-4 sm:space-y-6 order-1 lg:order-2">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: "Total", value: documents.length, icon: "📁" },
@@ -329,10 +329,10 @@ export default function DashboardPage() {
                 { label: "Active", value: active.length, icon: "🛠️" },
                 { label: "Signed", value: signed.length, icon: "✅" },
               ].map((s) => (
-                <div key={s.label} className="p-4 rounded-xl flex items-center gap-3" style={cardStyle}>
+                <div key={s.label} className="p-3 sm:p-4 rounded-xl flex items-center gap-3" style={cardStyle}>
                   <span className="text-xl">{s.icon}</span>
                   <div>
-                    <div className="text-2xl font-bold font-display" style={{ color: "var(--navy)" }}>{s.value}</div>
+                    <div className="text-xl sm:text-2xl font-bold font-display" style={{ color: "var(--navy)" }}>{s.value}</div>
                     <div className="text-xs" style={{ color: "var(--text-muted)" }}>{s.label}</div>
                   </div>
                 </div>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
               {attentionItems.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>No stuck documents right now.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {attentionItems.map((item) => (
                     <button key={`${item.kind}-${item.document.id}`} onClick={() => item.kind === "needs-fields" ? handlePrepare(item.document) : handleSign(item.document)}
                       className="p-3 rounded-xl text-left transition-all hover:shadow-sm" style={{ background: "var(--cream)", border: "1px solid var(--border)" }}>
@@ -357,7 +357,7 @@ export default function DashboardPage() {
             </Panel>
 
             <Panel title="Start a workflow">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {WORKFLOW_SHORTCUTS.map((workflow) => (
                   <button key={workflow.id} onClick={() => { setWorkflowId(workflow.id); router.push("/templates"); }}
                     className="p-3 rounded-xl text-left transition-all hover:shadow-sm" style={{ background: "var(--cream)", border: "1px solid var(--border)" }}>
@@ -386,9 +386,9 @@ export default function DashboardPage() {
             )}
 
             <Panel title="Documents">
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_150px_150px] gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_150px_150px] gap-3 mb-4">
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents, signers, projects..."
-                  className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                  className="px-3 py-2 rounded-lg text-sm outline-none sm:col-span-2 xl:col-span-1" style={inputStyle} />
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                   className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                   <option value="all">All statuses</option>
@@ -419,19 +419,19 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {visibleDocuments.map((doc) => (
                     <div key={doc.id} className="rounded-xl" style={{ border: "1px solid var(--border)" }}>
-                      <div className="p-3 flex flex-col md:flex-row gap-2 md:items-center md:justify-between" style={{ background: "var(--cream)" }}>
-                        <div className="flex flex-wrap items-center gap-2">
+                      <div className="p-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between" style={{ background: "var(--cream)" }}>
+                        <div className="grid grid-cols-1 min-[420px]:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:flex-wrap sm:items-center gap-2">
                           <select value={doc.projectId ?? ""} onChange={(e) => handleAssignProject(doc, e.target.value)}
-                            className="px-2 py-1 rounded-lg text-xs outline-none" style={inputStyle}>
+                            className="w-full sm:w-auto px-2 py-1 rounded-lg text-xs outline-none" style={inputStyle}>
                             <option value="">No project</option>
                             {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
                           </select>
-                          {doc.lastActivityLabel && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{doc.lastActivityLabel}</span>}
+                          {doc.lastActivityLabel && <span className="text-xs self-center" style={{ color: "var(--text-muted)" }}>{doc.lastActivityLabel}</span>}
                         </div>
                         {renamingId === doc.id ? (
-                          <div className="flex gap-2">
+                          <div className="grid grid-cols-[1fr_auto_auto] gap-2">
                             <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
-                              className="px-2 py-1 rounded-lg text-xs outline-none" style={inputStyle} />
+                              className="min-w-0 px-2 py-1 rounded-lg text-xs outline-none" style={inputStyle} />
                             <button onClick={() => commitRename(doc)} className="px-2 py-1 rounded-lg text-xs font-semibold" style={goldButtonStyle}>Save</button>
                             <button onClick={() => setRenamingId("")} className="px-2 py-1 rounded-lg text-xs" style={quietStyle}>Cancel</button>
                           </div>
@@ -449,7 +449,7 @@ export default function DashboardPage() {
             </Panel>
           </section>
 
-          <aside className="space-y-4">
+          <aside className="space-y-4 order-3">
             <Panel title="Contacts">
               <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                 {contacts.length === 0 ? (

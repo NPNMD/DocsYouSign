@@ -4,6 +4,7 @@ import { createEnvelopeWithSigner } from "@/lib/envelopes";
 import { sendInviteEmail } from "@/lib/email";
 import { extractClientIp } from "@/lib/audit";
 import { checkRateLimit, normalizeEmail } from "@/lib/security";
+import { verifyRequestAuth, unauthorized } from "@/lib/auth-server";
 import { adminDb } from "@/lib/firebase-admin";
 import { canSendEnvelope, trialEndDate } from "@/lib/usage";
 import type { BillingPlan } from "@/lib/types";
@@ -13,14 +14,15 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const ip = extractClientIp(req.headers);
-  const rate = checkRateLimit(`send:${ip}`);
+  const rate = await checkRateLimit(`send:${ip}`);
   if (!rate.allowed) {
     return NextResponse.json({ error: "rate-limited" }, { status: 429 });
   }
 
+  const auth = await verifyRequestAuth(req);
+  if (!auth) return unauthorized();
+
   let body: {
-    senderId?: string;
-    senderEmail?: string;
     documentId?: string;
     documentName?: string;
     recipientName?: string;
@@ -34,9 +36,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  const { senderId, senderEmail, documentId, documentName, recipientName, recipientEmail } = body;
-  if (!senderId || !senderEmail || !documentId || !documentName || !recipientName || !recipientEmail) {
+  // Identity is derived from the verified token, never from the request body.
+  const senderId = auth.uid;
+  const senderEmail = auth.email;
+  const { documentId, documentName, recipientName, recipientEmail } = body;
+  if (!documentId || !documentName || !recipientName || !recipientEmail) {
     return NextResponse.json({ error: "missing-fields" }, { status: 400 });
+  }
+
+  // Verify the sender actually owns the document they are sending.
+  const docSnap = await adminDb.collection("documents").doc(documentId).get();
+  if (!docSnap.exists || docSnap.data()!.ownerId !== senderId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const billingSnap = await adminDb.collection("billing").doc(senderId).get();
@@ -70,6 +81,7 @@ export async function POST(req: Request) {
       recipientEmail: normalizeEmail(recipientEmail),
       recipientName,
       senderEmail,
+      senderName: (auth.token.name as string | undefined) ?? undefined,
       documentName,
       signingUrl,
       subject: body.subject,

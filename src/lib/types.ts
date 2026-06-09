@@ -1,4 +1,14 @@
-export type FieldType = "signature" | "initials" | "date" | "text";
+export type FieldType = "signature" | "initials" | "date" | "text" | "checkbox";
+
+export type FieldRequirement = "required" | "optional" | "read_only";
+
+export type SignaturePolicy = "draw" | "type" | "upload" | "draw_type" | "all";
+
+export interface FieldOption {
+  id: string;
+  label: string;
+  value: string;
+}
 
 export interface DocumentField {
   id: string;
@@ -8,8 +18,21 @@ export interface DocumentField {
   y: number;          // % of page height
   width: number;      // % of page width
   height: number;     // % of page height
-  value?: string;     // filled value (dataUrl for sig/initials, ISO string for date, text for text)
+  value?: string;     // filled value (dataUrl for sig/initials, ISO string for date, text/checkbox)
   label?: string;     // optional custom label
+  required?: FieldRequirement;
+  assigneeId?: string;
+  options?: FieldOption[];
+  autoDate?: boolean;
+}
+
+export interface SavedSignature {
+  id: string;
+  userId: string;
+  dataUrl: string;
+  label?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Document {
@@ -46,8 +69,14 @@ export interface Document {
   // Final artifacts
   signedPdfPath?: string;
   signedPdfUrl?: string;
+  signedPdfHash?: string;
   certificatePath?: string;
   completedAt?: Date;
+  consentText?: string;
+  consentVersion?: string;
+  consentAcceptedAt?: Date;
+  signaturePolicy?: SignaturePolicy;
+  auditTrail?: SigningAuditEntry[];
   projectId?: string;
   projectName?: string;
   contactId?: string;
@@ -288,7 +317,7 @@ export type Template = FormTemplate | PdfTemplate;
 
 // ── Send-to-sign foundation ───────────────────────────────────────
 export interface SigningAuditEntry {
-  event: "sent" | "viewed" | "verified" | "signed" | "consent" | "voided" | "declined" | "reminded";
+  event: "sent" | "viewed" | "verified" | "signed" | "consent" | "voided" | "declined" | "reminded" | "completed" | "downloaded";
   at: Date;
   ip?: string;
   userAgent?: string;

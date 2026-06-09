@@ -14,11 +14,13 @@ export const metadata: Metadata = {
     siteName: "SignToSeal",
     locale: "en_US",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SignToSeal" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SignToSeal — Sign, Send & Seal Your Documents",
     description: "Upload PDFs, fill ready-made templates, send documents for signature, and seal every agreement.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: [

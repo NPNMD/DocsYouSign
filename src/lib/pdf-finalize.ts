@@ -1,9 +1,10 @@
 import { createHash } from "crypto";
 import { adminDb, adminStorage } from "./firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { flattenPdfFields, createFormPdf } from "./pdf-flatten";
 import { appendCertificate, type CertificateData } from "./pdf-certificate";
 import { getFormTemplate } from "./templates";
+import { buildAuditEntry } from "./audit";
 
 export async function finalizeDocument(
   documentId: string,
@@ -14,8 +15,10 @@ export async function finalizeDocument(
     senderEmail: string;
     ip?: string;
     userAgent?: string;
+    consentText?: string;
+    consentVersion?: string;
   }
-): Promise<{ signedPdfPath: string; signedPdfUrl: string } | null> {
+): Promise<{ signedPdfPath: string; signedPdfUrl: string; documentHash: string } | null> {
   const docSnap = await adminDb.collection("documents").doc(documentId).get();
   if (!docSnap.exists) return null;
   const data = docSnap.data()!;
@@ -58,8 +61,13 @@ export async function finalizeDocument(
     ip: certMeta.ip,
     userAgent: certMeta.userAgent,
     consentAccepted: true,
+    consentText: certMeta.consentText ?? (data.consentText as string | undefined),
+    consentVersion: certMeta.consentVersion ?? (data.consentVersion as string | undefined),
+    verificationMethod: "email-link",
   };
   pdfBytes = await appendCertificate(pdfBytes, certData);
+
+  const finalHash = createHash("sha256").update(pdfBytes).digest("hex");
 
   const signedPath = `documents/${data.ownerId}/signed/${documentId}_${Date.now()}.pdf`;
   const bucket = adminStorage.bucket();
@@ -74,10 +82,12 @@ export async function finalizeDocument(
   await adminDb.collection("documents").doc(documentId).update({
     signedPdfPath: signedPath,
     signedPdfUrl: signedUrl,
+    signedPdfHash: finalHash,
     completedAt: now,
     status: "completed",
     updatedAt: now,
+    auditTrail: FieldValue.arrayUnion(buildAuditEntry("completed")),
   });
 
-  return { signedPdfPath: signedPath, signedPdfUrl: signedUrl };
+  return { signedPdfPath: signedPath, signedPdfUrl: signedUrl, documentHash: finalHash };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripe, stripePriceIdForPlan } from "@/lib/billing";
+import { verifyRequestAuth, unauthorized } from "@/lib/auth-server";
 import type { BillingPlan } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -9,15 +10,22 @@ export async function POST(req: Request) {
   const stripe = getStripe();
   if (!stripe) return NextResponse.json({ error: "stripe-not-configured" }, { status: 503 });
 
-  let body: { plan?: Exclude<BillingPlan, "trial">; userId?: string; email?: string };
+  const auth = await verifyRequestAuth(req);
+  if (!auth) return unauthorized();
+
+  let body: { plan?: Exclude<BillingPlan, "trial"> };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  const { plan, userId, email } = body;
-  if (!plan || !userId || !email) {
+  // userId/email come from the verified token so a client can't pay on another
+  // account's behalf or spoof the customer email.
+  const userId = auth.uid;
+  const email = auth.email;
+  const { plan } = body;
+  if (!plan || !email) {
     return NextResponse.json({ error: "missing-fields" }, { status: 400 });
   }
 

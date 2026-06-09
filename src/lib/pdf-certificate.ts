@@ -11,6 +11,9 @@ export interface CertificateData {
   ip?: string;
   userAgent?: string;
   consentAccepted: boolean;
+  consentText?: string;
+  consentVersion?: string;
+  verificationMethod?: string;
 }
 
 /** Generate a one-page certificate of completion PDF. */
@@ -38,6 +41,12 @@ export async function generateCertificate(data: CertificateData): Promise<Uint8A
   if (data.ip) draw(`Signer IP: ${data.ip}`);
   if (data.userAgent) draw(`User-Agent: ${data.userAgent.slice(0, 80)}`);
   draw(`ESIGN/UETA consent: ${data.consentAccepted ? "Accepted" : "Not recorded"}`);
+  if (data.consentVersion) draw(`Consent version: ${data.consentVersion}`);
+  if (data.consentText) {
+    const snippet = data.consentText.slice(0, 120);
+    draw(`Consent text: ${snippet}${data.consentText.length > 120 ? "…" : ""}`, 9);
+  }
+  if (data.verificationMethod) draw(`Verification: ${data.verificationMethod}`);
   y -= 20;
   draw("This certificate is part of the executed document package.", 10);
   draw("SignToSeal — signtoseal.com", 10);

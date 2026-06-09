@@ -15,9 +15,19 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "./firebase";
-import type { Document, DocumentField, SigningRequest, CustomTemplate } from "./types";
+import type { Document, DocumentField, SigningRequest, CustomTemplate, SigningAuditEntry } from "./types";
 import type { Template } from "./types";
 import { recordActivity } from "./workspace";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function isPdfFile(file: File): boolean {
+  return (
+    file.type === "application/pdf" ||
+    file.type === "application/x-pdf" ||
+    file.name.toLowerCase().endsWith(".pdf")
+  );
+}
 
 function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Document {
   const data = d.data();
@@ -61,6 +71,15 @@ function docFromSnap(d: { id: string; data: () => Record<string, unknown> }): Do
     workflowName: data.workflowName as string | undefined,
     lastActivityAt: data.lastActivityAt ? (data.lastActivityAt as Timestamp).toDate() : undefined,
     lastActivityLabel: data.lastActivityLabel as string | undefined,
+    auditTrail: ((data.auditTrail as { event: string; at: string; ip?: string; email?: string }[] | undefined) ?? []).map(
+      (e) => ({
+        event: e.event as SigningAuditEntry["event"],
+        at: typeof e.at === "string" ? new Date(e.at) : new Date(),
+        ip: e.ip,
+        email: e.email,
+      })
+    ),
+    signedPdfHash: data.signedPdfHash as string | undefined,
   };
 }
 
@@ -78,6 +97,13 @@ export async function uploadDocument(
     suggestedName?: string;
   }
 ): Promise<Document> {
+  if (!isPdfFile(file)) {
+    throw new Error("Only PDF files are supported.");
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error("File must be 10MB or smaller.");
+  }
+
   const storagePath = `documents/${userId}/${Date.now()}_${file.name}`;
   const storageRef = ref(storage, storagePath);
   await uploadBytes(storageRef, file);

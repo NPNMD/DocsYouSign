@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "generate:brand": "node scripts/generate-brand-assets.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.56.0",
     "@types/pdfjs-dist": "^2.10.377",
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
@@ -25,6 +28,7 @@
     "stripe": "^22.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -32,6 +36,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"

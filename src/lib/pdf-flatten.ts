@@ -34,6 +34,8 @@ export async function flattenPdfFields(
       const text = field.value;
       const fontSize = Math.min(h * 0.6, 14);
       page.drawText(text, { x: x + 2, y: y + h * 0.25, size: fontSize, font, color: rgb(0, 0, 0) });
+    } else if (field.type === "checkbox" && field.value === "true") {
+      page.drawText("☑", { x: x + 2, y: y + h * 0.15, size: Math.min(h * 0.7, 16), font, color: rgb(0, 0, 0) });
     }
   }
 

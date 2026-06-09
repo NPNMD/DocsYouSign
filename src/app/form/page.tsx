@@ -8,6 +8,7 @@ import { getFormTemplate, LEGAL_DISCLAIMER } from "@/lib/templates";
 import { today } from "@/lib/template-utils";
 import { signFormDocument, saveFormData } from "@/lib/documents";
 import { sendSigningInvite } from "@/lib/signing";
+import { billingErrorMessage } from "@/lib/billing-client";
 import {
   DEFAULT_SEND_PRESETS,
   recordActivity,
@@ -23,7 +24,7 @@ import type { FormTemplate, SavedContact, SendPreset, TemplateFieldDef } from "@
 type Step = 1 | 2 | 3 | 4;
 
 function FormSignInner() {
-  const { user, loading } = useAuth();
+  const { user, loading, authedFetch } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const docId = searchParams.get("id");
@@ -184,12 +185,10 @@ function FormSignInner() {
     setSending(true);
     try {
       await saveFormData(docId, values).catch(() => {});
-      const res = await fetch("/api/envelopes/send", {
+      const res = await authedFetch("/api/envelopes/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          senderId: user.uid,
-          senderEmail: user.email ?? "",
           documentId: docId,
           documentName: template?.name ?? "Document",
           recipientName: recipName.trim(),
@@ -198,6 +197,12 @@ function FormSignInner() {
           message: message.trim() || undefined,
         }),
       });
+      if (res.status === 402) {
+        const err = await res.json().catch(() => ({}));
+        setSendError(billingErrorMessage((err as { error?: string }).error));
+        setSending(false);
+        return;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error ?? "send-failed");
@@ -224,7 +229,7 @@ function FormSignInner() {
     } finally {
       setSending(false);
     }
-  }, [user, docId, recipName, recipEmail, values, template, subject, message, selectedContactId, saveRecipient]);
+  }, [user, docId, recipName, recipEmail, values, template, subject, message, selectedContactId, saveRecipient, authedFetch]);
 
   const allPresets: SendPreset[] = useMemo(() => [
     ...presets,

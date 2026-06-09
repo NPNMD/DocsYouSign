@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { saveFields } from "@/lib/documents";
 import { sendSigningInvite } from "@/lib/signing";
+import { billingErrorMessage, useBilling } from "@/lib/billing-client";
 import {
   DEFAULT_SEND_PRESETS,
   recordActivity,
@@ -24,10 +25,12 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: string; desc: string;
   { type: "initials",  label: "Initials",  icon: "AB", desc: "Initials only",     color: "#3b82f6" },
   { type: "date",      label: "Date",      icon: "📅", desc: "Auto-filled date",  color: "#22c55e" },
   { type: "text",      label: "Text",      icon: "T",  desc: "Free text field",   color: "#a855f7" },
+  { type: "checkbox",  label: "Checkbox",  icon: "☑",  desc: "Yes / no toggle",   color: "#0f766e" },
 ];
 
 function PreparePageInner() {
-  const { user, loading } = useAuth();
+  const { user, loading, authedFetch } = useAuth();
+  const billing = useBilling(user?.uid);
   const router = useRouter();
   const searchParams = useSearchParams();
   const docId = searchParams.get("id");
@@ -37,6 +40,7 @@ function PreparePageInner() {
   const [fields, setFields] = useState<DocumentField[]>([]);
   const [placingType, setPlacingType] = useState<FieldType | null>(null);
   const [pageCount, setPageCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [recipName, setRecipName] = useState("");
@@ -90,16 +94,37 @@ function PreparePageInner() {
   }, [user]);
 
   const handlePlace = useCallback((field: DocumentField) => {
-    setFields(prev => [...prev, field]);
+    setFields(prev => [
+      ...prev,
+      field.type === "date" ? { ...field, autoDate: true } : field,
+    ]);
   }, []);
 
   const handleMove = useCallback((id: string, x: number, y: number) => {
     setFields(prev => prev.map(f => f.id === id ? { ...f, x, y } : f));
   }, []);
 
+  const handleResize = useCallback((id: string, width: number, height: number) => {
+    setFields(prev => prev.map(f => f.id === id ? { ...f, width, height } : f));
+  }, []);
+
   const handleDelete = useCallback((id: string) => {
     setFields(prev => prev.filter(f => f.id !== id));
   }, []);
+
+  const duplicateLastField = useCallback(() => {
+    const last = fields[fields.length - 1];
+    if (!last) return;
+    setFields(prev => [
+      ...prev,
+      {
+        ...last,
+        id: crypto.randomUUID(),
+        x: Math.min(last.x + 2, 100 - last.width),
+        y: Math.min(last.y + 2, 100 - last.height),
+      },
+    ]);
+  }, [fields]);
 
   const handleSave = async () => {
     if (!document) return;
@@ -126,12 +151,10 @@ function PreparePageInner() {
     setSending(true);
     try {
       await saveFields(document.id, fields, pageCount);
-      const res = await fetch("/api/envelopes/send", {
+      const res = await authedFetch("/api/envelopes/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          senderId: user.uid,
-          senderEmail: user.email ?? "",
           documentId: document.id,
           documentName: document.name,
           recipientName: recipName.trim(),
@@ -140,6 +163,12 @@ function PreparePageInner() {
           message: message.trim() || undefined,
         }),
       });
+      if (res.status === 402) {
+        const err = await res.json().catch(() => ({}));
+        setSendError(billingErrorMessage((err as { error?: string }).error));
+        setSending(false);
+        return;
+      }
       if (!res.ok) throw new Error("send-failed");
       const data = (await res.json()) as { signingUrl: string; token: string };
       await sendSigningInvite(email, data.token).catch(() => {});
@@ -291,6 +320,11 @@ function PreparePageInner() {
                   ))}
                 </div>
               </div>
+              <button onClick={duplicateLastField}
+                className="text-xs py-1.5 px-3 rounded-lg mt-1 w-full"
+                style={{ background: "rgba(10,22,40,0.06)", color: "var(--navy)" }}>
+                Duplicate last field
+              </button>
               <button onClick={() => setFields([])}
                 className="text-xs py-1.5 px-3 rounded-lg mt-1"
                 style={{ background: "rgba(139,26,26,0.08)", color: "var(--danger)" }}>
@@ -309,13 +343,40 @@ function PreparePageInner() {
               <button onClick={() => setPlacingType(null)} className="ml-3 underline text-xs opacity-70">Cancel</button>
             </div>
           )}
+          {pageCount > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-1">
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                  style={{
+                    background: currentPage === page ? "var(--gold)" : "rgba(255,255,255,0.12)",
+                    color: currentPage === page ? "var(--navy)" : "rgba(255,255,255,0.85)",
+                    border: currentPage === page ? "none" : "1px solid rgba(255,255,255,0.2)",
+                  }}
+                  aria-label={`Go to page ${page}`}
+                  aria-current={currentPage === page ? "page" : undefined}
+                >
+                  Page {page}
+                </button>
+              ))}
+            </div>
+          )}
           <PDFRenderer
             url={document.storageUrl}
             fields={fields}
             mode="prepare"
-            onPageCount={setPageCount}
+            currentPage={pageCount > 1 ? currentPage : undefined}
+            onPageSelect={setCurrentPage}
+            onPageCount={(n) => {
+              setPageCount(n);
+              setCurrentPage((p) => Math.min(p, Math.max(1, n)));
+            }}
             onFieldPlace={handlePlace}
             onFieldMove={handleMove}
+            onFieldResize={handleResize}
             onFieldDelete={handleDelete}
             placingType={placingType}
           />
@@ -329,15 +390,43 @@ function PreparePageInner() {
             <h2 className="font-display text-lg font-bold mb-4" style={{ color: "var(--navy)" }}>Send for Signature</h2>
             {sentLink ? (
               <div>
-                <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>Invite sent! Fallback link:</p>
-                <input readOnly value={sentLink} className="w-full text-xs p-2 rounded border mb-3" />
+                <div className="text-center mb-4">
+                  <div className="text-4xl mb-2">🔗</div>
+                  <h2 className="font-display text-xl font-bold" style={{ color: "var(--navy)" }}>
+                    Signing link ready
+                  </h2>
+                  <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+                    Share this link with {recipName || "the recipient"}. They can open it and sign immediately — no account or login required.
+                  </p>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <input readOnly value={sentLink}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ background: "var(--cream)", border: "1px solid var(--border)", color: "var(--navy)" }} />
+                  <button onClick={() => navigator.clipboard?.writeText(sentLink)}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold"
+                    style={{ background: "var(--navy)", color: "var(--gold)" }}>
+                    Copy
+                  </button>
+                </div>
                 <button onClick={() => { setShowSend(false); router.push("/dashboard"); }}
-                  className="w-full py-2 rounded-lg font-semibold" style={{ background: "var(--navy)", color: "var(--gold)" }}>
+                  className="w-full py-3 rounded-xl font-semibold" style={{ background: "var(--navy)", color: "var(--gold)" }}>
                   Done
                 </button>
               </div>
             ) : (
               <>
+                {sigCount === 0 && (
+                  <div className="mb-4 px-3 py-2.5 rounded-xl text-xs font-medium"
+                    style={{ background: "rgba(139,26,26,0.08)", color: "var(--danger)", border: "1px solid rgba(139,26,26,0.15)" }}>
+                    Place at least one signature field on the document before sending.
+                  </div>
+                )}
+                {!billing.loading && billing.remaining > 0 && (
+                  <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                    This will use 1 of {billing.remaining} envelope{billing.remaining !== 1 ? "s" : ""}.
+                  </p>
+                )}
                 {contacts.length > 0 && (
                   <select value={selectedContactId} onChange={(e) => chooseContact(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl text-sm mb-3 border">
@@ -371,7 +460,7 @@ function PreparePageInner() {
                 {sendError && <p className="text-xs mb-2" style={{ color: "var(--danger)" }}>{sendError}</p>}
                 <div className="flex gap-2">
                   <button onClick={() => setShowSend(false)} className="flex-1 py-2 rounded-lg border">Cancel</button>
-                  <button onClick={sendForSignature} disabled={sending}
+                  <button onClick={sendForSignature} disabled={sending || sigCount === 0}
                     className="flex-1 py-2 rounded-lg font-semibold disabled:opacity-50"
                     style={{ background: "var(--gold)", color: "var(--navy)" }}>
                     {sending ? "Sending…" : "Send"}
